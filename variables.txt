@@ -1,0 +1,91 @@
+PROJET SPOTIFY - CONVENTIONS DE NOMMAGE
+===========================================
+À partager entre les 4 membres. Utiliser ces noms exactement (majuscules comprises).
+Les noms de colonnes doivent correspondre au CSV Spotify.
+
+1. VARIABLES COMMUNES (config.py et data.py)
+--------------------------------------------
+URL_SPOTIFY       : URL du fichier CSV Spotify.
+RANDOM_STATE      : 42, graine commune pour les découpages reproductibles.
+TEST_SIZE         : 0.20, part réservée au jeu de test.
+TARGET_REG        : "energy", cible de régression.
+TARGET_CLF        : "playlist_genre", cible de classification.
+AUDIO_FEATURES    : liste des variables audio communes :
+                    danceability, energy, speechiness, acousticness,
+                    instrumentalness, liveness, valence, loudness,
+                    tempo, key, mode.
+FEATURES_REG      : liste des variables explicatives pour prédire energy :
+                    danceability, speechiness, acousticness,
+                    instrumentalness, liveness, valence, loudness,
+                    tempo, key, mode, duration_min, release_year.
+                    IMPORTANT : ne PAS inclure energy.
+FEATURES_CLF      : liste des variables explicatives pour prédire playlist_genre :
+                    danceability, energy, speechiness, acousticness,
+                    instrumentalness, liveness, valence, loudness,
+                    tempo, key, mode, duration_min, release_year.
+
+df                : DataFrame brut, directement chargé depuis le CSV.
+df_clean          : DataFrame commun après nettoyage.
+load_data()       : fonction qui charge le CSV et retourne df.
+clean_data(df)    : fonction qui nettoie df et retourne df_clean.
+release_year      : colonne créée à partir de track_album_release_date (année).
+duration_min      : colonne créée à partir de duration_ms / 60000.
+
+2. PARTIE 1 - EXPLORATION (01_exploration.ipynb)
+-----------------------------------------------
+df                : DataFrame original.
+df_clean          : DataFrame nettoyé, base des autres parties.
+NB : privilégier des noms explicites pour les tableaux descriptifs :
+     genre_counts, correlation_matrix, etc. (non imposés).
+
+3. PARTIE 2 - RÉGRESSION (02_regression.ipynb)
+---------------------------------------------
+X_reg             : DataFrame des variables explicatives, à partir de FEATURES_REG.
+y_reg             : Série energy, à partir de TARGET_REG.
+X_reg_train       : variables d'entraînement.
+X_reg_test        : variables de test.
+y_reg_train       : cible d'entraînement.
+y_reg_test        : cible de test.
+model_reg_simple  : modèle de régression linéaire simple.
+model_reg_multi   : modèle de régression linéaire multiple.
+y_reg_pred        : prédictions du modèle retenu sur X_reg_test.
+results_reg       : tableau comparatif des performances (R², MAE, RMSE).
+models/regression.joblib : modèle/pipeline final sauvegardé pour Streamlit.
+
+4. PARTIE 3 - CLASSIFICATION (03_classification.ipynb)
+------------------------------------------------------
+X_clf             : DataFrame des variables explicatives, à partir de FEATURES_CLF.
+y_clf             : Série playlist_genre, à partir de TARGET_CLF.
+X_clf_train       : variables d'entraînement.
+X_clf_test        : variables de test.
+y_clf_train       : cible d'entraînement.
+y_clf_test        : cible de test.
+model_clf_log     : modèle de régression logistique.
+model_clf_knn     : modèle KNN.
+y_clf_pred        : prédictions du modèle retenu sur X_clf_test.
+results_clf       : tableau comparatif des performances (accuracy, F1, etc.).
+models/classification.joblib : modèle/pipeline final sauvegardé pour Streamlit.
+
+5. PARTIE 4 - APPLICATION STREAMLIT (app.py et pages/)
+------------------------------------------------------
+app.py                  : page d'accueil Streamlit.
+pages/1_Exploration.py  : graphiques et exploration.
+pages/2_Regression.py   : résultats et formulaire de régression.
+pages/3_Classification.py : résultats et formulaire de classification.
+pages/4_Conclusion.py  : bilan, limites et conclusion.
+Les modèles chargés doivent utiliser EXACTEMENT les colonnes définies
+par FEATURES_REG ou FEATURES_CLF dans le bon ordre.
+
+6. RÈGLES DE COLLABORATION
+-------------------------
+- Tout le monde importe les mêmes constantes depuis config.py.
+- Tout le monde travaille à partir de clean_data(load_data()).
+- Ne pas changer les noms de colonnes ou variables sans accord collectif.
+- Faire les jeux train/test avec RANDOM_STATE = 42 et TEST_SIZE = 0.20.
+- Traiter les données manquantes sans utiliser les données de test pour
+  calculer les médianes ou moyennes (éviter la fuite de données).
+- Pour KNN et régression logistique, prévoir la standardisation dans un Pipeline.
+- Sauvegarder le pipeline complet avec joblib afin que Streamlit puisse prédire.
+- Vérifier la stratégie de doublons : un même titre peut apparaître dans
+  plusieurs playlists/genres ; supprimer les doublons par track_id implique
+  de conserver un seul genre par morceau.
