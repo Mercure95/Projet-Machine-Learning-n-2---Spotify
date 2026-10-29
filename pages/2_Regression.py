@@ -5,7 +5,6 @@ import sys
 import os
 import time
 
-# Permet à Python de trouver les fichiers config.py et data.py à la racine
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 import streamlit as st
@@ -17,317 +16,426 @@ import numpy as np
 
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LinearRegression
+from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error
 
-# Import des configurations communes
 from config import RANDOM_STATE, TEST_SIZE, TARGET_REG, FEATURES_REG
 from data import load_data, clean_data
 
-st.set_page_config(page_title="Régression - Énergie", page_icon="🎧", layout="wide")
+st.set_page_config(page_title="Régression ML", page_icon="🤖", layout="wide")
 
 # =========================================================
-# CSS Personnalisé (Thème Spotify DA)
+# NAVIGATION PAR BARRE LATÉRALE (ROUTAGE)
 # =========================================================
-st.markdown("""
+st.sidebar.title("Navigation Modèles")
+page_choisie = st.sidebar.radio("Sélectionnez l'étude :", ["⚡ Prédire l'Énergie", "🔥 Prédire la Popularité (Bonus)"])
+
+# Application de la DA (Couleurs) selon la page
+if page_choisie == "⚡ Prédire l'Énergie":
+    couleur_principale = "#1DB954" # Vert Spotify
+    couleur_rgba = "rgba(29, 185, 84, 0.4)" # Vert transparent pour les tableaux
+    titre_page = "🎧 Prédire l'énergie : Démarche et Modélisation"
+else:
+    couleur_principale = "#FF5722" # Orange Feu
+    couleur_rgba = "rgba(255, 87, 34, 0.4)" # Orange transparent pour les tableaux
+    titre_page = "🔥 Prédire la Popularité : Le grand défi (Bonus)"
+
+st.markdown(f"""
     <style>
-    .big-font {
+    .big-font {{
         font-size: 45px !important;
-        font-weight: 900;
-        color: #1DB954; /* Vert Spotify */
+        font-weight: 800;
+        color: {couleur_principale};
         text-align: center;
         margin-top: 10px;
         margin-bottom: 20px;
         text-shadow: 0px 2px 4px rgba(0,0,0,0.3);
-        letter-spacing: -1px;
-    }
-    .stProgress > div > div > div > div {
-        background-color: #1DB954;
-    }
-    /* Personnalisation légère des métriques pour les faire ressortir */
-    div[data-testid="stMetricValue"] {
-        color: #1DB954;
-    }
+    }}
+    .stProgress > div > div > div > div {{
+        background-color: {couleur_principale};
+    }}
+    div[data-testid="stMetricValue"] {{
+        color: {couleur_principale};
+    }}
     </style>
 """, unsafe_allow_html=True)
 
-st.title("Prédire l'énergie : Démarche et Modélisation")
-
-st.info("**Notre défi :** Peut-on deviner mathématiquement l'énergie d'un morceau de musique sans jamais l'écouter, uniquement en analysant ses caractéristiques techniques brutes ?")
-
-st.markdown("""
-Cette page détaille la construction de notre algorithme de **Régression Linéaire** pour répondre à cette question. 
-Notre objectif précis est de prédire la variable cible **`energy`** (l'intensité globale d'une piste, notée de 0 à 1).
-
-**Pour concevoir un modèle robuste, notre démarche suit 3 étapes :**
-1. **Un nettoyage minutieux** pour écarter les données absurdes.
-2. **Des modèles simples** (à une variable) pour valider nos hypothèses de départ.
-3. **Un modèle multiple** (toutes les variables) pour maximiser la précision.
-""")
-st.divider()
-
 # =========================================================
-# Chargement des données et préparation en cache
+# FONCTIONS UTILITAIRES ET CHARGEMENTS EN CACHE
 # =========================================================
-@st.cache_data(show_spinner=False)
-def prepare_all_models():
-    df = load_data()
-    df_clean = clean_data(df)
-    
-    # Filtre A : Loudness
-    df_loud = df_clean[(df_clean['duration_min'] >= 1.0) & (df_clean['duration_min'] <= 10.0) & (df_clean['loudness'] >= -20.0)]
-    X_train_l, X_test_l, y_train_l, y_test_l = train_test_split(df_loud[['loudness']], df_loud[TARGET_REG], test_size=TEST_SIZE, random_state=RANDOM_STATE)
-    model_loud = LinearRegression().fit(X_train_l, y_train_l)
-    
-    # Filtre B : Acousticness
-    df_aco = df_clean[(df_clean['duration_min'] >= 1.0) & (df_clean['duration_min'] <= 10.0) & (df_clean['speechiness'] < 0.5)]
-    X_train_a, X_test_a, y_train_a, y_test_a = train_test_split(df_aco[['acousticness']], df_aco[TARGET_REG], test_size=TEST_SIZE, random_state=RANDOM_STATE)
-    model_aco = LinearRegression().fit(X_train_a, y_train_a)
-    
-    # Filtre Global : Multiple
-    df_multi = df_clean[(df_clean['duration_min'] >= 1.0) & (df_clean['duration_min'] <= 10.0) & (df_clean['loudness'] >= -20.0) & (df_clean['tempo'] > 0) & (df_clean['speechiness'] < 0.5)]
-    X_train_m, X_test_m, y_train_m, y_test_m = train_test_split(df_multi[FEATURES_REG], df_multi[TARGET_REG], test_size=TEST_SIZE, random_state=RANDOM_STATE)
-    
-    return df_clean, df_loud, df_aco, df_multi, model_loud, X_train_l, X_test_l, y_train_l, y_test_l, model_aco, X_train_a, X_test_a, y_train_a, y_test_a, X_train_m, X_test_m, y_train_m, y_test_m
-
-with st.spinner(" Chargement des données musicales et entraînement des algorithmes..."):
-    (df_initial, df_loud, df_aco, df_multi, 
-     model_loud, X_train_l, X_test_l, y_train_l, y_test_l, 
-     model_aco, X_train_a, X_test_a, y_train_a, y_test_a, 
-     X_train_m, X_test_m, y_train_m, y_test_m) = prepare_all_models()
-
-@st.cache_resource
-def load_final_model():
-    return joblib.load('models/regression.joblib')
-
-try:
-    model_multi = load_final_model()
-except FileNotFoundError:
-    st.error("Modèle introuvable. Exécutez le notebook 02_regression.ipynb pour le générer.")
-    st.stop()
-
-# Fonction utilitaire pour générer de beaux graphiques de dispersion
-def plot_scatter_spotify(y_true, y_pred, title):
+def plot_scatter_custom(y_true, y_pred, title, color):
     fig, ax = plt.subplots(figsize=(6, 4))
-    sns.scatterplot(x=y_true, y=y_pred, alpha=0.3, color='#1DB954', edgecolor='none', ax=ax) # Vert Spotify
-    ax.plot([0, 1], [0, 1], color='red', linestyle='--', linewidth=2)
+    sns.scatterplot(x=y_true, y=y_pred, alpha=0.3, color=color, ax=ax)
+    if "Popularité" in titre_page:
+        ax.plot([0, 100], [0, 100], color='red', linestyle='--', linewidth=2)
+    else:
+        ax.plot([0, 1], [0, 1], color='red', linestyle='--', linewidth=2)
     ax.set_title(title, fontweight='bold')
-    ax.set_xlabel("Vraie Énergie")
-    ax.set_ylabel("Énergie Prédite")
+    ax.set_xlabel("Valeur Réelle")
+    ax.set_ylabel("Valeur Prédite")
     return fig
-
-# =========================================================
-# 1. Préparation, Filtrage et Train/Test Split
-# =========================================================
-st.header("1. Préparation des données et Train/Test Split")
-
-st.markdown("""
-La régression linéaire trace une droite au cœur d'un nuage de points. Elle est mathématiquement très vulnérable aux valeurs aberrantes (outliers). Avant d'entraîner nos modèles, nous appliquons un **pré-filtrage** spécifique selon la variable étudiée pour ne conserver que la "vraie" musique.
-""")
-
-# Visualisation impactante du nettoyage
-col_f1, col_f2, col_f3 = st.columns(3)
-col_f1.metric("Catalogue Initial", f"{len(df_initial):,}".replace(',', ' '))
-col_f2.metric("Filtres appliqués", "Durée, Volume, Paroles")
-col_f3.metric("Catalogue Purifié", f"{len(df_multi):,}".replace(',', ' '), delta=f"- {len(df_initial)-len(df_multi)} anomalies", delta_color="normal")
-
-st.code("""
-# Code d'application du filtre global pour le modèle multiple
-df_multi = df_clean[
-    (df_clean['duration_min'] >= 1.0) & (df_clean['duration_min'] <= 10.0) & # Exclut les jingles ou mix de 2h
-    (df_clean['loudness'] >= -20.0) &                                        # Exclut les quasi-silences
-    (df_clean['tempo'] > 0) &                                                # Exclut les erreurs d'API
-    (df_clean['speechiness'] < 0.5)                                          # Exclut les podcasts (trop parlés)
-]
-""", language="python")
-
-st.markdown("""
-###  La séparation Train / Test
-Pour évaluer notre algorithme, nous devons le tester sur des données qu'il n'a jamais vues, comme un étudiant face à un examen inédit. En Machine Learning, c'est la fonction `train_test_split`.
-*  **Train (80%)** : Le modèle observe les caractéristiques audio et l'énergie réelle, puis calcule ses coefficients.
-*  **Test (20%)** : Le modèle découvre de nouveaux morceaux. On lui cache l'énergie, il doit la prédire, et on mesure son erreur.
-""")
-
-st.code("""
-# Découpage avec une graine fixe (random_state=42) pour la reproductibilité
-from sklearn.model_selection import train_test_split
-
-X_train, X_test, y_train, y_test = train_test_split(
-    X_reg, y_reg, test_size=0.20, random_state=42
-)
-""", language="python")
-
-st.divider()
-
-# =========================================================
-# 2. Modèle Simple A (Loudness)
-# =========================================================
-st.header("2. Modèle Simple A : Le Volume (`loudness`)")
-st.markdown("""
-Le `loudness` possède la plus forte corrélation positive avec l'énergie. Nous avons filtré les silences extrêmes (`loudness < -20 dB`).
-""")
-
-st.code("""
-# Entraînement sur une seule dimension (X_train_l ne contient que 'loudness')
-model_loud = LinearRegression()
-model_loud.fit(X_train_l, y_train_l)
-""", language="python")
-
-col_a1, col_a2 = st.columns([1, 2])
-y_pred_l = model_loud.predict(X_test_l)
-with col_a1:
-    st.metric("Précision (R² Test)", f"{r2_score(y_test_l, y_pred_l):.3f}")
-    st.metric("Erreur (MAE Test)", f"{mean_absolute_error(y_test_l, y_pred_l):.3f}")
-    st.markdown("**Interprétation :** Le volume seul parvient déjà à expliquer une part importante de l'énergie. Le nuage de points suit la ligne rouge, mais reste très dispersé.")
-with col_a2:
-    st.pyplot(plot_scatter_spotify(y_test_l, y_pred_l, "Modèle Simple A (Loudness)"))
-
-st.divider()
-
-# =========================================================
-# 3. Modèle Simple B (Acousticness)
-# =========================================================
-st.header("3. Modèle Simple B : L'Acoustique (`acousticness`)")
-st.markdown("""
-L'`acousticness` possède la plus forte corrélation négative (un morceau très acoustique manque d'énergie). Nous avons exclu les podcasts (`speechiness > 0.5`) pour ne pas fausser l'analyse.
-""")
-
-st.code("""
-# Entraînement sur la dimension acoustique
-model_aco = LinearRegression()
-model_aco.fit(X_train_a, y_train_a)
-""", language="python")
-
-col_b1, col_b2 = st.columns([1, 2])
-y_pred_a = model_aco.predict(X_test_a)
-with col_b1:
-    st.metric("Précision (R² Test)", f"{r2_score(y_test_a, y_pred_a):.3f}")
-    st.metric("Erreur (MAE Test)", f"{mean_absolute_error(y_test_a, y_pred_a):.3f}")
-    st.markdown("**Interprétation :** L'acoustique est un bon indicateur de faible énergie, mais elle est très insuffisante pour estimer avec précision l'énergie d'un morceau complexe.")
-with col_b2:
-    st.pyplot(plot_scatter_spotify(y_test_a, y_pred_a, "Modèle Simple B (Acousticness)"))
-
-st.divider()
-
-# =========================================================
-# 4. Modèle Multiple
-# =========================================================
-st.header("4. Modèle Multiple : La puissance de toutes les variables")
-st.markdown("""
-Nous utilisons ici toutes nos caractéristiques audio (`FEATURES_REG`) sur notre catalogue purifié grâce au filtre global. L'algorithme calcule un hyperplan multidimensionnel qui pondère chaque variable.
-""")
-
-st.code("""
-# Entraînement sur toutes les variables (X_train_m)
-model_multi = LinearRegression()
-model_multi.fit(X_train_m, y_train_m)
-
-# Récupération des coefficients pour l'analyse
-poids_variables = model_multi.coef_
-""", language="python")
-
-col_m1, col_m2 = st.columns([1, 2])
-y_pred_m = model_multi.predict(X_test_m)
-with col_m1:
-    st.metric(" Précision (R² Test)", f"{r2_score(y_test_m, y_pred_m):.3f}")
-    st.metric(" Erreur (MAE Test)", f"{mean_absolute_error(y_test_m, y_pred_m):.3f}")
-    st.markdown("**Interprétation :** Les erreurs s'annulent. En croisant le volume avec le tempo ou l'instrumentalité, le modèle gagne drastiquement en précision. Le nuage de points est nettement plus resserré sur la ligne de prédiction parfaite.")
-with col_m2:
-    st.pyplot(plot_scatter_spotify(y_test_m, y_pred_m, "Modèle Multiple"))
-
-# Affichage des coefficients avec DA Spotify
-st.subheader("Analyse des coefficients du modèle multiple")
-coefficients = pd.DataFrame(list(zip(FEATURES_REG, model_multi.coef_)), columns=['Variable', 'Coefficient'])
-coefficients['Impact Absolu'] = coefficients['Coefficient'].abs()
-coefficients = coefficients.sort_values(by='Impact Absolu', ascending=False)
-
-fig_coef, ax_coef = plt.subplots(figsize=(10, 4))
-sns.barplot(data=coefficients, x='Coefficient', y='Variable', palette='dark:#1DB954_r', ax=ax_coef)
-ax_coef.set_title("Poids mathématique de chaque variable dans l'équation finale", fontweight='bold')
-st.pyplot(fig_coef)
-
-st.divider()
-
-# =========================================================
-# 5. Comparaison Globale
-# =========================================================
-st.header("5.  Comparaison et Bilan")
-st.markdown("Récapitulatif des erreurs sur le jeu de données de Test (données inconnues). Les meilleurs scores sont surlignés en vert.")
 
 def calc_metrics_dict(model, X_te, y_te):
     pred = model.predict(X_te)
     return {
-        'R² (Explication de la variance)': r2_score(y_te, pred),
+        'R² (Explication variance)': r2_score(y_te, pred),
         'MAE (Erreur Moyenne Absolue)': mean_absolute_error(y_te, pred),
         'RMSE (Erreur Quadratique)': np.sqrt(mean_squared_error(y_te, pred))
     }
 
-df_comparatif = pd.DataFrame([
-    calc_metrics_dict(model_loud, X_test_l, y_test_l),
-    calc_metrics_dict(model_aco, X_test_a, y_test_a),
-    calc_metrics_dict(model_multi, X_test_m, y_test_m)
-], index=["1. Simple (Loudness)", "2. Simple (Acousticness)", "3. Multiple (Toutes variables)"])
+@st.cache_data(show_spinner=False)
+def prepare_data_and_simple_models():
+    df = load_data()
+    df_clean = clean_data(df)
+    
+    # Base commune filtrée
+    df_base = df_clean[
+        (df_clean['duration_min'] >= 2.3) & (df_clean['duration_min'] <= 5.0) & 
+        (df_clean['loudness'] >= -20.0) & (df_clean['tempo'] > 0) & (df_clean['speechiness'] < 0.5)
+    ].copy()
 
-# Application d'un style pandas élégant pour mettre en évidence les gagnants
-styled_df = df_comparatif.style\
-    .format("{:.3f}")\
-    .highlight_max(subset=['R² (Explication de la variance)'], color='rgba(29, 185, 84, 0.4)')\
-    .highlight_min(subset=['MAE (Erreur Moyenne Absolue)', 'RMSE (Erreur Quadratique)'], color='rgba(29, 185, 84, 0.4)')
+    # ---- PARTIE ÉNERGIE ----
+    X_tr_l, X_te_l, y_tr_l, y_te_l = train_test_split(df_base[['loudness']], df_base[TARGET_REG], test_size=TEST_SIZE, random_state=RANDOM_STATE)
+    model_lr_loud = LinearRegression().fit(X_tr_l, y_tr_l)
+    model_rf_loud = RandomForestRegressor(random_state=RANDOM_STATE, n_estimators=100).fit(X_tr_l, y_tr_l)
+    
+    X_tr_a, X_te_a, y_tr_a, y_te_a = train_test_split(df_base[['acousticness']], df_base[TARGET_REG], test_size=TEST_SIZE, random_state=RANDOM_STATE)
+    model_lr_aco = LinearRegression().fit(X_tr_a, y_tr_a)
+    model_rf_aco = RandomForestRegressor(random_state=RANDOM_STATE, n_estimators=100).fit(X_tr_a, y_tr_a)
+    
+    X_tr_m, X_te_m, y_tr_m, y_te_m = train_test_split(df_base[FEATURES_REG], df_base[TARGET_REG], test_size=TEST_SIZE, random_state=RANDOM_STATE)
 
-st.dataframe(styled_df, use_container_width=True)
+    # ---- PARTIE POPULARITÉ ----
+    X_tr_p_l, X_te_p_l, y_tr_p_l, y_te_p_l = train_test_split(df_base[['loudness']], df_base['track_popularity'], test_size=TEST_SIZE, random_state=RANDOM_STATE)
+    model_pop_lr_loud = LinearRegression().fit(X_tr_p_l, y_tr_p_l)
+    
+    X_tr_p_d, X_te_p_d, y_tr_p_d, y_te_p_d = train_test_split(df_base[['danceability']], df_base['track_popularity'], test_size=TEST_SIZE, random_state=RANDOM_STATE)
+    model_pop_lr_dance = LinearRegression().fit(X_tr_p_d, y_tr_p_d)
 
-st.success("**Conclusion :** Le modèle multiple est le vainqueur incontesté. Avec un R² très supérieur et une erreur moyenne très faible, il prouve qu'un morceau de musique ne peut pas être résumé à un seul de ses aspects.")
+    X_tr_p_m, X_te_p_m, y_tr_p_m, y_te_p_m = train_test_split(df_base[FEATURES_REG], df_base['track_popularity'], test_size=TEST_SIZE, random_state=RANDOM_STATE)
 
+    return (df_clean, df_base, 
+            model_lr_loud, model_rf_loud, X_te_l, y_te_l, X_tr_l, y_tr_l,
+            model_lr_aco, model_rf_aco, X_te_a, y_te_a, X_tr_a, y_tr_a,
+            X_te_m, y_te_m, X_tr_m, y_tr_m,
+            model_pop_lr_loud, X_te_p_l, y_te_p_l,
+            model_pop_lr_dance, X_te_p_d, y_te_p_d,
+            X_te_p_m, y_te_p_m, X_tr_p_m, y_tr_p_m)
+
+with st.spinner("⏳ Chargement global de l'environnement..."):
+    (df_clean, df_base, 
+     model_lr_loud, model_rf_loud, X_test_l, y_test_l, X_train_l, y_train_l,
+     model_lr_aco, model_rf_aco, X_test_a, y_test_a, X_train_a, y_train_a,
+     X_test_m, y_test_m, X_train_m, y_train_m,
+     model_pop_lr_loud, X_test_pop_l, y_test_pop_l,
+     model_pop_lr_dance, X_test_pop_d, y_test_pop_d,
+     X_test_pop_m, y_test_pop_m, X_train_pop_m, y_train_pop_m) = prepare_data_and_simple_models()
+
+@st.cache_resource
+def load_all_joblib_models():
+    return (joblib.load('models/regression.joblib'), joblib.load('models/rf_regression.joblib'),
+            joblib.load('models/pop_lr_regression.joblib'), joblib.load('models/pop_rf_regression.joblib'))
+
+try:
+    model_lr_multi, model_rf_multi, model_pop_lr_multi, model_pop_rf_multi = load_all_joblib_models()
+except FileNotFoundError:
+    st.error("Certains modèles sont introuvables. Exécutez intégralement le notebook 02_regression.ipynb.")
+    st.stop()
+
+# =========================================================
+# CONTENU COMMUN : INTRODUCTION ET NETTOYAGE
+# =========================================================
+st.title(titre_page)
+
+if page_choisie == "⚡ Prédire l'Énergie":
+    st.info("🎯 **Notre défi :** Peut-on deviner mathématiquement l'énergie d'un morceau de musique sans jamais l'écouter, uniquement en analysant ses caractéristiques techniques ?")
+else:
+    st.info("🎯 **Notre défi :** Peut-on deviner mathématiquement le succès (Popularité de 0 à 100) d'un morceau en analysant ses caractéristiques audio ?")
+
+st.header("1. Préparation des données et concept de Train/Test Split")
+
+cond_dur = (df_clean['duration_min'] < 2.3) | (df_clean['duration_min'] > 5.0)
+cond_loud = df_clean['loudness'] < -20.0
+cond_tempo = df_clean['tempo'] == 0
+cond_speech = df_clean['speechiness'] >= 0.5
+df_analyse = pd.DataFrame({
+    'Critère aberrant': ['Durée hors norme (<2.3m ou >5.0m)', 'Quasi-silence (Loudness < -20 dB)', 'Erreur API (Tempo = 0 BPM)', 'Podcasts (Speechiness >= 0.5)'],
+    'Pistes impactées': [cond_dur.sum(), cond_loud.sum(), cond_tempo.sum(), cond_speech.sum()],
+    'Proportion': [f"{(cond_dur.mean()*100):.2f} %", f"{(cond_loud.mean()*100):.2f} %", f"{(cond_tempo.mean()*100):.2f} %", f"{(cond_speech.mean()*100):.2f} %"],
+    'Stratégie': ['Suppression', 'Suppression', 'Suppression', 'Suppression']
+})
+st.table(df_analyse)
+
+with st.expander("💡 Débat Data Science : Pourquoi la Suppression plutôt que le Remplacement (Imputation) ?"):
+    st.markdown("""
+    En Data Science, on peut souvent remplacer une donnée aberrante par la médiane du dataset. Dans notre cas précis, cette approche serait une erreur :
+    * **Remplacer la nature d'un objet :** Si nous remplaçons le `speechiness` d'un podcast (0.90) par la moyenne globale (0.05), le morceau reste intrinsèquement un podcast !
+    * **Restriction stratégique :** Filtrer les durées entre 2.3 et 5.0 minutes est un choix assumé pour centrer notre algorithme sur le "format radio standard".
+    """)
+
+st.code("""
+# Exemple de filtrage global pour nos modèles suite à l'analyse
+df_multi = df_clean[
+    (df_clean['duration_min'] >= 2.3) & (df_clean['duration_min'] <= 5.0) & # Format radio standard
+    (df_clean['loudness'] >= -20.0) &                                       # Exclut les quasi-silences
+    (df_clean['tempo'] > 0) &                                               # Exclut les erreurs d'API
+    (df_clean['speechiness'] < 0.5)                                         # Exclut les podcasts (trop parlés)
+]
+""", language="python")
+
+st.markdown("""
+### La séparation Train / Test
+Pour vérifier qu'un étudiant a compris, on lui donne un examen inédit. En Machine Learning, c'est la fonction `train_test_split`.
+- **Train (80%)** : Le modèle observe les caractéristiques et l'énergie réelle, puis calcule ses règles.
+- **Test (20%)** : Le modèle découvre de nouveaux morceaux. On lui cache l'énergie, il doit la prédire, et on mesure son erreur.
+""")
+
+st.code("""
+# Découpage Train/Test avec une graine fixe (random_state=42) pour la reproductibilité
+from sklearn.model_selection import train_test_split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.20, random_state=42)
+""", language="python")
 st.divider()
 
 # =========================================================
-# 6. Simulateur interactif
+# ROUTAGE DES PAGES (ÉNERGIE VS POPULARITÉ)
 # =========================================================
-st.header("6. Testez le Modèle Multiple : Le Studio Virtuel")
-st.markdown("Utilisez les curseurs pour définir les caractéristiques d'un morceau fictif. Le modèle exécutera son équation en temps réel pour en deviner l'énergie.")
 
-with st.form("prediction_form", border=True):
-    col_s1, col_s2, col_s3 = st.columns(3)
+if page_choisie == "⚡ Prédire l'Énergie":
+    tab_lr, tab_rf = st.tabs(["📈 Modèle 1 : Régression Linéaire", "🌲 Modèle 2 : Random Forest"])
+
+    with tab_lr:
+        st.header("2. Modèle Simple A : Prédiction par le Volume (`loudness`)")
+        st.code("model_loud = LinearRegression().fit(X_train_l, y_train_l)", language="python")
+        col_a1, col_a2 = st.columns([1, 2])
+        y_pred_lr_l = model_lr_loud.predict(X_test_l)
+        with col_a1:
+            st.metric("Précision (R² Test)", f"{r2_score(y_test_l, y_pred_lr_l):.3f}")
+            st.metric("Erreur (MAE Test)", f"{mean_absolute_error(y_test_l, y_pred_lr_l):.3f}")
+        with col_a2:
+            st.pyplot(plot_scatter_custom(y_test_l, y_pred_lr_l, "Modèle Linéaire A (Loudness)", couleur_principale))
+        st.divider()
+
+        st.header("3. Modèle Simple B : Prédiction par l'Acoustique (`acousticness`)")
+        st.code("model_aco = LinearRegression().fit(X_train_a, y_train_a)", language="python")
+        col_b1, col_b2 = st.columns([1, 2])
+        y_pred_lr_a = model_lr_aco.predict(X_test_a)
+        with col_b1:
+            st.metric("Précision (R² Test)", f"{r2_score(y_test_a, y_pred_lr_a):.3f}")
+            st.metric("Erreur (MAE Test)", f"{mean_absolute_error(y_test_a, y_pred_lr_a):.3f}")
+        with col_b2:
+            st.pyplot(plot_scatter_custom(y_test_a, y_pred_lr_a, "Modèle Linéaire B (Acousticness)", couleur_principale))
+        st.divider()
+
+        st.header("4. Modèle Multiple : La puissance de toutes les variables")
+        st.code("model_multi = LinearRegression().fit(X_train_m, y_train_m)", language="python")
+        col_m1, col_m2 = st.columns([1, 2])
+        y_pred_lr_m = model_lr_multi.predict(X_test_m)
+        with col_m1:
+            st.metric("⭐ Précision (R² Test)", f"{r2_score(y_test_m, y_pred_lr_m):.3f}")
+            st.metric("⭐ Erreur (MAE Test)", f"{mean_absolute_error(y_test_m, y_pred_lr_m):.3f}")
+        with col_m2:
+            st.pyplot(plot_scatter_custom(y_test_m, y_pred_lr_m, "Modèle Linéaire Multiple", couleur_principale))
+
+        st.subheader("Bilan Comparatif (Linéaire)")
+        df_comparatif_lr = pd.DataFrame([calc_metrics_dict(model_lr_loud, X_test_l, y_test_l), calc_metrics_dict(model_lr_aco, X_test_a, y_test_a), calc_metrics_dict(model_lr_multi, X_test_m, y_test_m)], index=["1. Simple (Loudness)", "2. Simple (Acousticness)", "3. Multiple (Toutes variables)"])
+        
+        styled_df_lr = df_comparatif_lr.style\
+            .format("{:.3f}")\
+            .highlight_max(subset=['R² (Explication variance)'], color=couleur_rgba)\
+            .highlight_min(subset=['MAE (Erreur Moyenne Absolue)', 'RMSE (Erreur Quadratique)'], color=couleur_rgba)
+        st.dataframe(styled_df_lr, use_container_width=True)
+        st.divider()
+
+        st.header("5. Testez la Régression Linéaire 🎛️")
+        with st.form("form_lr", border=True):
+            col_s1, col_s2, col_s3 = st.columns(3)
+            with col_s1:
+                loudness_lr = st.slider("🔊 Loudness (dB)", -30.0, 5.0, -5.0, 0.5, key="el_loud")
+                acousticness_lr = st.slider("🎸 Acousticness", 0.0, 1.0, 0.2, 0.05, key="el_aco")
+                danceability_lr = st.slider("🕺 Danceability", 0.0, 1.0, 0.6, 0.05, key="el_dance")
+                tempo_lr = st.number_input("⏱️ Tempo (BPM)", 0.0, 250.0, 120.0, key="el_tempo")
+            with col_s2:
+                valence_lr = st.slider("😊 Valence", 0.0, 1.0, 0.5, 0.05, key="el_val")
+                instrumentalness_lr = st.slider("🎻 Instrumentalness", 0.0, 1.0, 0.0, 0.05, key="el_instru")
+                liveness_lr = st.slider("🎤 Liveness", 0.0, 1.0, 0.15, 0.05, key="el_live")
+                speechiness_lr = st.slider("🗣️ Speechiness", 0.0, 1.0, 0.05, 0.05, key="el_speech")
+            with col_s3:
+                key_lr = st.selectbox("🎹 Key", options=list(range(12)), key="el_key")
+                mode_lr = st.selectbox("🎼 Mode", options=[0, 1], key="el_mode")
+                duration_lr = st.number_input("⏳ Durée (min)", 0.5, 15.0, 3.5, 0.1, key="el_dur")
+                release_yr_lr = st.number_input("📅 Année", 1950, 2024, 2020, 1, key="el_yr")
+            sub_lr = st.form_submit_button("⚡ PRÉDIRE (LINÉAIRE)", use_container_width=True)
+
+        if sub_lr:
+            in_lr = pd.DataFrame([{'danceability': danceability_lr, 'speechiness': speechiness_lr, 'acousticness': acousticness_lr, 'instrumentalness': instrumentalness_lr, 'liveness': liveness_lr, 'valence': valence_lr, 'loudness': loudness_lr, 'tempo': tempo_lr, 'key': key_lr, 'mode': mode_lr, 'duration_min': duration_lr, 'release_year': release_yr_lr}])[FEATURES_REG]
+            pred_lr = np.clip(model_lr_multi.predict(in_lr)[0], 0, 1)
+            st.markdown(f"<div class='big-font'>⚡ ÉNERGIE CALCULÉE : {pred_lr:.2f} / 1.00</div>", unsafe_allow_html=True)
+            st.progress(float(pred_lr))
+
+    with tab_rf:
+        st.header("2. RF Simple A : Par le Volume (`loudness`)")
+        st.code("model_rf_loud = RandomForestRegressor(random_state=42).fit(X_train_l, y_train_l)", language="python")
+        col_rfa1, col_rfa2 = st.columns([1, 2])
+        y_pred_rf_l = model_rf_loud.predict(X_test_l)
+        with col_rfa1:
+            st.metric("Précision (R² Test)", f"{r2_score(y_test_l, y_pred_rf_l):.3f}")
+            st.markdown("**Observation :** Regardez les points ! L'arbre de décision crée des \"paliers\".")
+        with col_rfa2:
+            st.pyplot(plot_scatter_custom(y_test_l, y_pred_rf_l, "RF Simple A (Loudness)", couleur_principale))
+        st.divider()
+        
+        st.header("3. RF Multiple : La vraie puissance des Forêts Aléatoires")
+        st.code("model_rf_multi = RandomForestRegressor(random_state=42).fit(X_train_m, y_train_m)", language="python")
+        col_rfm1, col_rfm2 = st.columns([1, 2])
+        y_pred_rf_m = model_rf_multi.predict(X_test_m)
+        with col_rfm1:
+            st.metric("🏆 Précision (R² Test)", f"{r2_score(y_test_m, y_pred_rf_m):.3f}")
+            st.metric("📉 Erreur (MAE Test)", f"{mean_absolute_error(y_test_m, y_pred_rf_m):.3f}")
+        with col_rfm2:
+            st.pyplot(plot_scatter_custom(y_test_m, y_pred_rf_m, "Random Forest Multiple", couleur_principale))
+
+        st.subheader("Bilan Comparatif Final (Random Forest)")
+        df_comparatif_rf = pd.DataFrame([calc_metrics_dict(model_rf_loud, X_test_l, y_test_l), calc_metrics_dict(model_rf_aco, X_test_a, y_test_a), calc_metrics_dict(model_rf_multi, X_test_m, y_test_m)], index=["1. RF Simple (Loudness)", "2. RF Simple (Acousticness)", "3. RF Multiple (Toutes variables)"])
+        
+        styled_df_rf = df_comparatif_rf.style\
+            .format("{:.3f}")\
+            .highlight_max(subset=['R² (Explication variance)'], color=couleur_rgba)\
+            .highlight_min(subset=['MAE (Erreur Moyenne Absolue)', 'RMSE (Erreur Quadratique)'], color=couleur_rgba)
+        st.dataframe(styled_df_rf, use_container_width=True)
+        st.divider()
+
+        st.header("4. Testez le Random Forest 🎛️")
+        with st.form("form_rf", border=True):
+            col_r1, col_r2, col_r3 = st.columns(3)
+            with col_r1:
+                loudness_rf = st.slider("🔊 Loudness (dB)", -30.0, 5.0, -5.0, 0.5, key="er_loud")
+                acousticness_rf = st.slider("🎸 Acousticness", 0.0, 1.0, 0.2, 0.05, key="er_aco")
+                danceability_rf = st.slider("🕺 Danceability", 0.0, 1.0, 0.6, 0.05, key="er_dance")
+                tempo_rf = st.number_input("⏱️ Tempo (BPM)", 0.0, 250.0, 120.0, key="er_tempo")
+            with col_r2:
+                valence_rf = st.slider("😊 Valence", 0.0, 1.0, 0.5, 0.05, key="er_val")
+                instrumentalness_rf = st.slider("🎻 Instrumentalness", 0.0, 1.0, 0.0, 0.05, key="er_instru")
+                liveness_rf = st.slider("🎤 Liveness", 0.0, 1.0, 0.15, 0.05, key="er_live")
+                speechiness_rf = st.slider("🗣️ Speechiness", 0.0, 1.0, 0.05, 0.05, key="er_speech")
+            with col_r3:
+                key_rf = st.selectbox("🎹 Key", options=list(range(12)), key="er_key")
+                mode_rf = st.selectbox("🎼 Mode", options=[0, 1], key="er_mode")
+                duration_rf = st.number_input("⏳ Durée (min)", 0.5, 15.0, 3.5, 0.1, key="er_dur")
+                release_yr_rf = st.number_input("📅 Année", 1950, 2024, 2020, 1, key="er_yr")
+            sub_rf = st.form_submit_button("⚡ PRÉDIRE (RANDOM FOREST)", use_container_width=True)
+
+        if sub_rf:
+            in_rf = pd.DataFrame([{'danceability': danceability_rf, 'speechiness': speechiness_rf, 'acousticness': acousticness_rf, 'instrumentalness': instrumentalness_rf, 'liveness': liveness_rf, 'valence': valence_rf, 'loudness': loudness_rf, 'tempo': tempo_rf, 'key': key_rf, 'mode': mode_rf, 'duration_min': duration_rf, 'release_year': release_yr_rf}])[FEATURES_REG]
+            pred_rf = np.clip(model_rf_multi.predict(in_rf)[0], 0, 1)
+            st.markdown(f"<div class='big-font'>⚡ ÉNERGIE CALCULÉE : {pred_rf:.2f} / 1.00</div>", unsafe_allow_html=True)
+            st.progress(float(pred_rf))
+
+elif page_choisie == "🔥 Prédire la Popularité (Bonus)":
     
-    with col_s1:
-        loudness = st.slider("Loudness (Volume en dB)", -30.0, 5.0, -5.0, 0.5)
-        acousticness = st.slider("Acousticness", 0.0, 1.0, 0.2, 0.05)
-        danceability = st.slider(" Danceability", 0.0, 1.0, 0.6, 0.05)
-        tempo = st.number_input("Tempo (BPM)", 0.0, 250.0, 120.0)
-        
-    with col_s2:
-        valence = st.slider("Valence (Positivité)", 0.0, 1.0, 0.5, 0.05)
-        instrumentalness = st.slider("Instrumentalness", 0.0, 1.0, 0.0, 0.05)
-        liveness = st.slider("Liveness (Concert)", 0.0, 1.0, 0.15, 0.05)
-        speechiness = st.slider("Speechiness (Paroles)", 0.0, 1.0, 0.05, 0.05)
-        
-    with col_s3:
-        key = st.selectbox("Key (Tonalité 0-11)", options=list(range(12)))
-        mode = st.selectbox("Mode", options=[0, 1], format_func=lambda x: "Majeur (1)" if x == 1 else "Mineur (0)")
-        duration_min = st.number_input("Durée (minutes)", 0.5, 15.0, 3.5, 0.1)
-        release_year = st.number_input("Année de sortie", 1950, 2024, 2020, 1)
+    st.header("2. 🧠 Réponse à la question Bonus de l'énoncé")
+    st.warning("⚠️ **Alerte Spoilers : Les scores de nos algorithmes vont s'effondrer.**")
+    st.markdown("""
+    Contrairement à l'Énergie où nos algorithmes excellaient, prédire la popularité avec strictement les mêmes caractéristiques audios donne de mauvais résultats. **Ceci n'est pas une erreur de code, c'est une conclusion sociologique majeure de notre étude :**
+    1. **L'audio ne fait pas tout :** Un morceau mathématiquement "parfait" pour danser peut faire un flop si l'artiste est inconnu.
+    2. **La notoriété et le marketing :** Le nom de l'artiste (non inclus ici) pèse souvent plus lourd que le tempo de la musique.
+    3. **Le facteur temporel (Hype) :** Une musique peut exploser 10 ans après sa sortie grâce à TikTok. L'algorithme ne peut pas le deviner.
+    """)
+    st.divider()
 
-    submit_button = st.form_submit_button(label=" DEMANDER AU MODÈLE DE PRÉDIRE L'ÉNERGIE", use_container_width=True)
+    tab_pop_lr, tab_pop_rf = st.tabs(["📈 Modèle 1 : Régression Linéaire", "🌲 Modèle 2 : Random Forest"])
 
-if submit_button:
-    with st.spinner("Analyse des fréquences et calcul de l'hyperplan..."):
-        time.sleep(0.8) # Petite pause artificielle pour l'effet "calcul en cours"
+    with tab_pop_lr:
+        st.header("3. Linéaire Multiple : Audio complet")
+        st.code("model_pop_lr_multi = LinearRegression().fit(X_train_pop_m, y_train_pop_m)", language="python")
+        col_m1, col_m2 = st.columns([1, 2])
+        y_pred_pop_lr_m = model_pop_lr_multi.predict(X_test_pop_m)
+        with col_m1:
+            st.metric("⭐ Précision (R²)", f"{r2_score(y_test_pop_m, y_pred_pop_lr_m):.3f}")
+            st.metric("⭐ Erreur (MAE)", f"{mean_absolute_error(y_test_pop_m, y_pred_pop_lr_m):.1f} pts")
+        with col_m2:
+            st.pyplot(plot_scatter_custom(y_test_pop_m, y_pred_pop_lr_m, "LR Multiple (Audio)", couleur_principale))
+
+        st.subheader("Bilan Linéaire")
+        df_comparatif_pop_lr = pd.DataFrame([calc_metrics_dict(model_pop_lr_loud, X_test_pop_l, y_test_pop_l), calc_metrics_dict(model_pop_lr_dance, X_test_pop_d, y_test_pop_d), calc_metrics_dict(model_pop_lr_multi, X_test_pop_m, y_test_pop_m)], index=["1. Simple (Loudness)", "2. Simple (Danceability)", "3. Multiple (Audio)"])
         
-        input_data = {
-            'danceability': [danceability], 'speechiness': [speechiness],
-            'acousticness': [acousticness], 'instrumentalness': [instrumentalness],
-            'liveness': [liveness], 'valence': [valence],
-            'loudness': [loudness], 'tempo': [tempo],
-            'key': [key], 'mode': [mode],
-            'duration_min': [duration_min], 'release_year': [release_year]
-        }
-        X_user = pd.DataFrame(input_data)[FEATURES_REG]
-        prediction = model_multi.predict(X_user)[0]
+        styled_df_pop_lr = df_comparatif_pop_lr.style\
+            .format("{:.3f}")\
+            .highlight_max(subset=['R² (Explication variance)'], color=couleur_rgba)\
+            .highlight_min(subset=['MAE (Erreur Moyenne Absolue)', 'RMSE (Erreur Quadratique)'], color=couleur_rgba)
+        st.dataframe(styled_df_pop_lr, use_container_width=True)
+        st.divider()
+
+        st.header("4. Testez la Machine à Succès (Linéaire) 🎛️")
+        with st.form("form_pop_lr", border=True):
+            col_s1, col_s2, col_s3 = st.columns(3)
+            with col_s1:
+                loudness_lr = st.slider("🔊 Loudness (dB)", -30.0, 5.0, -5.0, 0.5, key="plr_loud")
+                acousticness_lr = st.slider("🎸 Acousticness", 0.0, 1.0, 0.2, 0.05, key="plr_aco")
+                danceability_lr = st.slider("🕺 Danceability", 0.0, 1.0, 0.6, 0.05, key="plr_dance")
+                tempo_lr = st.number_input("⏱️ Tempo (BPM)", 0.0, 250.0, 120.0, key="plr_tempo")
+            with col_s2:
+                valence_lr = st.slider("😊 Valence", 0.0, 1.0, 0.5, 0.05, key="plr_val")
+                instrumentalness_lr = st.slider("🎻 Instrumentalness", 0.0, 1.0, 0.0, 0.05, key="plr_instru")
+                liveness_lr = st.slider("🎤 Liveness", 0.0, 1.0, 0.15, 0.05, key="plr_live")
+                speechiness_lr = st.slider("🗣️ Speechiness", 0.0, 1.0, 0.05, 0.05, key="plr_speech")
+            with col_s3:
+                key_lr = st.selectbox("🎹 Key", options=list(range(12)), key="plr_key")
+                mode_lr = st.selectbox("🎼 Mode", options=[0, 1], key="plr_mode")
+                duration_lr = st.number_input("⏳ Durée (min)", 0.5, 15.0, 3.5, 0.1, key="plr_dur")
+                release_yr_lr = st.number_input("📅 Année", 1950, 2024, 2020, 1, key="plr_yr")
+            sub_lr = st.form_submit_button("🔥 PRÉDIRE LA POPULARITÉ (LINÉAIRE)", use_container_width=True)
+
+        if sub_lr:
+            in_lr = pd.DataFrame([{'danceability': danceability_lr, 'speechiness': speechiness_lr, 'acousticness': acousticness_lr, 'instrumentalness': instrumentalness_lr, 'liveness': liveness_lr, 'valence': valence_lr, 'loudness': loudness_lr, 'tempo': tempo_lr, 'key': key_lr, 'mode': mode_lr, 'duration_min': duration_lr, 'release_year': release_yr_lr}])[FEATURES_REG]
+            pred_lr = np.clip(model_pop_lr_multi.predict(in_lr)[0], 0, 100)
+            st.markdown(f"<div class='big-font'>🔥 SCORE DE SUCCÈS : {pred_lr:.1f} / 100</div>", unsafe_allow_html=True)
+            st.progress(int(pred_lr))
+
+    with tab_pop_rf:
+        st.header("3. Random Forest Multiple : La limite de la machine")
+        st.code("model_pop_rf_multi = RandomForestRegressor(random_state=42, n_estimators=100, max_depth=15).fit(X_train_pop_m, y_train_pop_m)", language="python")
+        col_rfm1, col_rfm2 = st.columns([1, 2])
+        y_pred_pop_rf_m = model_pop_rf_multi.predict(X_test_pop_m)
+        with col_rfm1:
+            st.metric("🏆 Précision (R²)", f"{r2_score(y_test_pop_m, y_pred_pop_rf_m):.3f}")
+            st.metric("📉 Erreur (MAE)", f"{mean_absolute_error(y_test_pop_m, y_pred_pop_rf_m):.1f} pts")
+        with col_rfm2:
+            st.pyplot(plot_scatter_custom(y_test_pop_m, y_pred_pop_rf_m, "Random Forest (Audio)", couleur_principale))
+
+        st.subheader("Bilan Comparatif Final (Popularité)")
+        df_comparatif_pop_rf = pd.DataFrame([calc_metrics_dict(model_pop_lr_multi, X_test_pop_m, y_test_pop_m), calc_metrics_dict(model_pop_rf_multi, X_test_pop_m, y_test_pop_m)], index=["1. Linéaire Multiple (Audio)", "2. RF Multiple (Audio)"])
         
-        # Plafonnage entre 0 et 1 (règle mathématique d'affichage)
-        prediction_bounded = np.clip(prediction, 0, 1)
-        
-        st.balloons()
-        
-        # Affichage géant HTML
-        st.markdown(f"<div class='big-font'> ÉNERGIE CALCULÉE : {prediction_bounded:.2f} / 1.00</div>", unsafe_allow_html=True)
-        st.progress(float(prediction_bounded))
+        styled_df_pop_rf = df_comparatif_pop_rf.style\
+            .format("{:.3f}")\
+            .highlight_max(subset=['R² (Explication variance)'], color=couleur_rgba)\
+            .highlight_min(subset=['MAE (Erreur Moyenne Absolue)', 'RMSE (Erreur Quadratique)'], color=couleur_rgba)
+        st.dataframe(styled_df_pop_rf, use_container_width=True)
+        st.divider()
+
+        st.header("4. Testez la Machine à Succès (Random Forest) 🎛️")
+        with st.form("form_pop_rf", border=True):
+            col_r1, col_r2, col_r3 = st.columns(3)
+            with col_r1:
+                loudness_rf = st.slider("🔊 Loudness (dB)", -30.0, 5.0, -5.0, 0.5, key="prf_loud")
+                acousticness_rf = st.slider("🎸 Acousticness", 0.0, 1.0, 0.2, 0.05, key="prf_aco")
+                danceability_rf = st.slider("🕺 Danceability", 0.0, 1.0, 0.6, 0.05, key="prf_dance")
+                tempo_rf = st.number_input("⏱️ Tempo (BPM)", 0.0, 250.0, 120.0, key="prf_tempo")
+            with col_r2:
+                valence_rf = st.slider("😊 Valence", 0.0, 1.0, 0.5, 0.05, key="prf_val")
+                instrumentalness_rf = st.slider("🎻 Instrumentalness", 0.0, 1.0, 0.0, 0.05, key="prf_instru")
+                liveness_rf = st.slider("🎤 Liveness", 0.0, 1.0, 0.15, 0.05, key="prf_live")
+                speechiness_rf = st.slider("🗣️ Speechiness", 0.0, 1.0, 0.05, 0.05, key="prf_speech")
+            with col_r3:
+                key_rf = st.selectbox("🎹 Key", options=list(range(12)), key="prf_key")
+                mode_rf = st.selectbox("🎼 Mode", options=[0, 1], key="prf_mode")
+                duration_rf = st.number_input("⏳ Durée (min)", 0.5, 15.0, 3.5, 0.1, key="prf_dur")
+                release_yr_rf = st.number_input("📅 Année", 1950, 2024, 2020, 1, key="prf_yr")
+            sub_rf = st.form_submit_button("🔥 PRÉDIRE LA POPULARITÉ (RANDOM FOREST)", use_container_width=True)
+
+        if sub_rf:
+            in_rf = pd.DataFrame([{'danceability': danceability_rf, 'speechiness': speechiness_rf, 'acousticness': acousticness_rf, 'instrumentalness': instrumentalness_rf, 'liveness': liveness_rf, 'valence': valence_rf, 'loudness': loudness_rf, 'tempo': tempo_rf, 'key': key_rf, 'mode': mode_rf, 'duration_min': duration_rf, 'release_year': release_yr_rf}])[FEATURES_REG]
+            pred_rf = np.clip(model_pop_rf_multi.predict(in_rf)[0], 0, 100)
+            st.markdown(f"<div class='big-font'>🔥 SCORE DE SUCCÈS : {pred_rf:.1f} / 100</div>", unsafe_allow_html=True)
+
+
