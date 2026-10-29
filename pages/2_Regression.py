@@ -11,7 +11,6 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-import joblib
 import numpy as np
 
 from sklearn.model_selection import train_test_split
@@ -19,7 +18,7 @@ from sklearn.linear_model import LinearRegression
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error
 
-from config import RANDOM_STATE, TEST_SIZE, TARGET_REG, FEATURES_REG
+from config import RANDOM_STATE, TEST_SIZE, TARGET_REG
 from data import load_data, clean_data
 
 st.set_page_config(page_title="Régression ML", page_icon="🤖", layout="wide")
@@ -84,7 +83,7 @@ def calc_metrics_dict(model, X_te, y_te):
     }
 
 @st.cache_data(show_spinner=False)
-def prepare_data_and_simple_models():
+def prepare_data_and_models():
     df = load_data()
     df_clean = clean_data(df)
     
@@ -94,7 +93,17 @@ def prepare_data_and_simple_models():
         (df_clean['loudness'] >= -20.0) & (df_clean['tempo'] > 0) & (df_clean['speechiness'] < 0.5)
     ].copy()
 
-    # ---- PARTIE ÉNERGIE ----
+    # Définition des variables
+    NUMERIC_FEATURES = ['danceability', 'speechiness', 'acousticness', 'instrumentalness', 
+                        'liveness', 'valence', 'loudness', 'tempo', 'key', 'mode', 
+                        'duration_min', 'release_year']
+    
+    df_encoded = pd.get_dummies(df_base, columns=['playlist_genre'], drop_first=False, dtype=int)
+    GENRE_FEATURES = [col for col in df_encoded.columns if col.startswith('playlist_genre_')]
+    FEATURES_ENERGY_AVEC = NUMERIC_FEATURES + GENRE_FEATURES
+    FEATURES_POP = NUMERIC_FEATURES + GENRE_FEATURES
+
+    # ---- PARTIE ÉNERGIE (Modèles Simples) ----
     X_tr_l, X_te_l, y_tr_l, y_te_l = train_test_split(df_base[['loudness']], df_base[TARGET_REG], test_size=TEST_SIZE, random_state=RANDOM_STATE)
     model_lr_loud = LinearRegression().fit(X_tr_l, y_tr_l)
     model_rf_loud = RandomForestRegressor(random_state=RANDOM_STATE, n_estimators=100).fit(X_tr_l, y_tr_l)
@@ -103,44 +112,45 @@ def prepare_data_and_simple_models():
     model_lr_aco = LinearRegression().fit(X_tr_a, y_tr_a)
     model_rf_aco = RandomForestRegressor(random_state=RANDOM_STATE, n_estimators=100).fit(X_tr_a, y_tr_a)
     
-    X_tr_m, X_te_m, y_tr_m, y_te_m = train_test_split(df_base[FEATURES_REG], df_base[TARGET_REG], test_size=TEST_SIZE, random_state=RANDOM_STATE)
+    # ---- PARTIE ÉNERGIE (Modèles Multiples : Sans et Avec Genre) ----
+    X_tr_m_sans, X_te_m_sans, y_tr_m_sans, y_te_m_sans = train_test_split(df_base[NUMERIC_FEATURES], df_base[TARGET_REG], test_size=TEST_SIZE, random_state=RANDOM_STATE)
+    model_lr_multi_sans = LinearRegression().fit(X_tr_m_sans, y_tr_m_sans)
+    model_rf_multi_sans = RandomForestRegressor(random_state=RANDOM_STATE, n_estimators=100).fit(X_tr_m_sans, y_tr_m_sans)
+
+    X_tr_m_avec, X_te_m_avec, y_tr_m_avec, y_te_m_avec = train_test_split(df_encoded[FEATURES_ENERGY_AVEC], df_encoded[TARGET_REG], test_size=TEST_SIZE, random_state=RANDOM_STATE)
+    model_lr_multi_avec = LinearRegression().fit(X_tr_m_avec, y_tr_m_avec)
+    model_rf_multi_avec = RandomForestRegressor(random_state=RANDOM_STATE, n_estimators=100).fit(X_tr_m_avec, y_tr_m_avec)
 
     # ---- PARTIE POPULARITÉ ----
-    X_tr_p_l, X_te_p_l, y_tr_p_l, y_te_p_l = train_test_split(df_base[['loudness']], df_base['track_popularity'], test_size=TEST_SIZE, random_state=RANDOM_STATE)
+    TARGET_POP = 'track_popularity'
+    X_tr_p_l, X_te_p_l, y_tr_p_l, y_te_p_l = train_test_split(df_base[['loudness']], df_base[TARGET_POP], test_size=TEST_SIZE, random_state=RANDOM_STATE)
     model_pop_lr_loud = LinearRegression().fit(X_tr_p_l, y_tr_p_l)
     
-    X_tr_p_d, X_te_p_d, y_tr_p_d, y_te_p_d = train_test_split(df_base[['danceability']], df_base['track_popularity'], test_size=TEST_SIZE, random_state=RANDOM_STATE)
+    X_tr_p_d, X_te_p_d, y_tr_p_d, y_te_p_d = train_test_split(df_base[['danceability']], df_base[TARGET_POP], test_size=TEST_SIZE, random_state=RANDOM_STATE)
     model_pop_lr_dance = LinearRegression().fit(X_tr_p_d, y_tr_p_d)
 
-    X_tr_p_m, X_te_p_m, y_tr_p_m, y_te_p_m = train_test_split(df_base[FEATURES_REG], df_base['track_popularity'], test_size=TEST_SIZE, random_state=RANDOM_STATE)
+    X_tr_p_m, X_te_p_m, y_tr_p_m, y_te_p_m = train_test_split(df_encoded[FEATURES_POP], df_encoded[TARGET_POP], test_size=TEST_SIZE, random_state=RANDOM_STATE)
+    model_pop_lr_multi = LinearRegression().fit(X_tr_p_m, y_tr_p_m)
+    model_pop_rf_multi = RandomForestRegressor(random_state=RANDOM_STATE, n_estimators=100, max_depth=15).fit(X_tr_p_m, y_tr_p_m)
 
-    return (df_clean, df_base, 
-            model_lr_loud, model_rf_loud, X_te_l, y_te_l, X_tr_l, y_tr_l,
-            model_lr_aco, model_rf_aco, X_te_a, y_te_a, X_tr_a, y_tr_a,
-            X_te_m, y_te_m, X_tr_m, y_tr_m,
+    return (df_clean, df_base, NUMERIC_FEATURES, GENRE_FEATURES, FEATURES_ENERGY_AVEC, FEATURES_POP,
+            model_lr_loud, model_rf_loud, X_te_l, y_te_l,
+            model_lr_aco, model_rf_aco, X_te_a, y_te_a,
+            model_lr_multi_sans, model_rf_multi_sans, X_te_m_sans, y_te_m_sans,
+            model_lr_multi_avec, model_rf_multi_avec, X_te_m_avec, y_te_m_avec,
             model_pop_lr_loud, X_te_p_l, y_te_p_l,
             model_pop_lr_dance, X_te_p_d, y_te_p_d,
-            X_te_p_m, y_te_p_m, X_tr_p_m, y_tr_p_m)
+            model_pop_lr_multi, model_pop_rf_multi, X_te_p_m, y_te_p_m)
 
-with st.spinner("⏳ Chargement global de l'environnement..."):
-    (df_clean, df_base, 
-     model_lr_loud, model_rf_loud, X_test_l, y_test_l, X_train_l, y_train_l,
-     model_lr_aco, model_rf_aco, X_test_a, y_test_a, X_train_a, y_train_a,
-     X_test_m, y_test_m, X_train_m, y_train_m,
+with st.spinner("⏳ Entraînement en mémoire de l'environnement (sans fichiers joblib lourds)..."):
+    (df_clean, df_base, NUMERIC_FEATURES, GENRE_FEATURES, FEATURES_ENERGY_AVEC, FEATURES_POP,
+     model_lr_loud, model_rf_loud, X_test_l, y_test_l,
+     model_lr_aco, model_rf_aco, X_test_a, y_test_a,
+     model_lr_multi_sans, model_rf_multi_sans, X_test_m_sans, y_test_m_sans,
+     model_lr_multi_avec, model_rf_multi_avec, X_test_m_avec, y_test_m_avec,
      model_pop_lr_loud, X_test_pop_l, y_test_pop_l,
      model_pop_lr_dance, X_test_pop_d, y_test_pop_d,
-     X_test_pop_m, y_test_pop_m, X_train_pop_m, y_train_pop_m) = prepare_data_and_simple_models()
-
-@st.cache_resource
-def load_all_joblib_models():
-    return (joblib.load('models/regression.joblib'), joblib.load('models/rf_regression.joblib'),
-            joblib.load('models/pop_lr_regression.joblib'), joblib.load('models/pop_rf_regression.joblib'))
-
-try:
-    model_lr_multi, model_rf_multi, model_pop_lr_multi, model_pop_rf_multi = load_all_joblib_models()
-except FileNotFoundError:
-    st.error("Certains modèles sont introuvables. Exécutez intégralement le notebook 02_regression.ipynb.")
-    st.stop()
+     model_pop_lr_multi, model_pop_rf_multi, X_test_pop_m, y_test_pop_m) = prepare_data_and_models()
 
 # =========================================================
 # CONTENU COMMUN : INTRODUCTION ET NETTOYAGE
@@ -202,6 +212,24 @@ st.divider()
 # =========================================================
 
 if page_choisie == "⚡ Prédire l'Énergie":
+    
+    st.sidebar.markdown("---")
+    st.sidebar.subheader("⚙️ Options des Modèles")
+    inclure_genre_global = st.sidebar.checkbox("Inclure le genre musical (Énergie)", value=True)
+    
+    if inclure_genre_global:
+        model_lr_multi_actif = model_lr_multi_avec
+        model_rf_multi_actif = model_rf_multi_avec
+        X_test_m_actif = X_test_m_avec
+        y_test_m_actif = y_test_m_avec
+        nom_modele = "Multiple (+ Genres)"
+    else:
+        model_lr_multi_actif = model_lr_multi_sans
+        model_rf_multi_actif = model_rf_multi_sans
+        X_test_m_actif = X_test_m_sans
+        y_test_m_actif = y_test_m_sans
+        nom_modele = "Multiple (Sans Genre)"
+
     tab_lr, tab_rf = st.tabs(["📈 Modèle 1 : Régression Linéaire", "🌲 Modèle 2 : Random Forest"])
 
     with tab_lr:
@@ -227,18 +255,18 @@ if page_choisie == "⚡ Prédire l'Énergie":
             st.pyplot(plot_scatter_custom(y_test_a, y_pred_lr_a, "Modèle Linéaire B (Acousticness)", couleur_principale))
         st.divider()
 
-        st.header("4. Modèle Multiple : La puissance de toutes les variables")
+        st.header(f"4. Modèle {nom_modele} : La puissance de toutes les variables")
         st.code("model_multi = LinearRegression().fit(X_train_m, y_train_m)", language="python")
         col_m1, col_m2 = st.columns([1, 2])
-        y_pred_lr_m = model_lr_multi.predict(X_test_m)
+        y_pred_lr_m = model_lr_multi_actif.predict(X_test_m_actif)
         with col_m1:
-            st.metric("⭐ Précision (R² Test)", f"{r2_score(y_test_m, y_pred_lr_m):.3f}")
-            st.metric("⭐ Erreur (MAE Test)", f"{mean_absolute_error(y_test_m, y_pred_lr_m):.3f}")
+            st.metric("⭐ Précision (R² Test)", f"{r2_score(y_test_m_actif, y_pred_lr_m):.3f}")
+            st.metric("⭐ Erreur (MAE Test)", f"{mean_absolute_error(y_test_m_actif, y_pred_lr_m):.3f}")
         with col_m2:
-            st.pyplot(plot_scatter_custom(y_test_m, y_pred_lr_m, "Modèle Linéaire Multiple", couleur_principale))
+            st.pyplot(plot_scatter_custom(y_test_m_actif, y_pred_lr_m, f"Modèle Linéaire {nom_modele}", couleur_principale))
 
         st.subheader("Bilan Comparatif (Linéaire)")
-        df_comparatif_lr = pd.DataFrame([calc_metrics_dict(model_lr_loud, X_test_l, y_test_l), calc_metrics_dict(model_lr_aco, X_test_a, y_test_a), calc_metrics_dict(model_lr_multi, X_test_m, y_test_m)], index=["1. Simple (Loudness)", "2. Simple (Acousticness)", "3. Multiple (Toutes variables)"])
+        df_comparatif_lr = pd.DataFrame([calc_metrics_dict(model_lr_loud, X_test_l, y_test_l), calc_metrics_dict(model_lr_aco, X_test_a, y_test_a), calc_metrics_dict(model_lr_multi_actif, X_test_m_actif, y_test_m_actif)], index=["1. Simple (Loudness)", "2. Simple (Acousticness)", f"3. {nom_modele}"])
         
         styled_df_lr = df_comparatif_lr.style\
             .format("{:.3f}")\
@@ -248,6 +276,11 @@ if page_choisie == "⚡ Prédire l'Énergie":
         st.divider()
 
         st.header("5. Testez la Régression Linéaire 🎛️")
+        
+        genre_choisi_lr = None
+        if inclure_genre_global:
+            genre_choisi_lr = st.selectbox("🎸 Genre Musical :", options=['pop', 'rap', 'rock', 'latin', 'r&b', 'edm'], key="genre_lr")
+
         with st.form("form_lr", border=True):
             col_s1, col_s2, col_s3 = st.columns(3)
             with col_s1:
@@ -268,8 +301,16 @@ if page_choisie == "⚡ Prédire l'Énergie":
             sub_lr = st.form_submit_button("⚡ PRÉDIRE (LINÉAIRE)", use_container_width=True)
 
         if sub_lr:
-            in_lr = pd.DataFrame([{'danceability': danceability_lr, 'speechiness': speechiness_lr, 'acousticness': acousticness_lr, 'instrumentalness': instrumentalness_lr, 'liveness': liveness_lr, 'valence': valence_lr, 'loudness': loudness_lr, 'tempo': tempo_lr, 'key': key_lr, 'mode': mode_lr, 'duration_min': duration_lr, 'release_year': release_yr_lr}])[FEATURES_REG]
-            pred_lr = np.clip(model_lr_multi.predict(in_lr)[0], 0, 1)
+            input_dict = {'danceability': danceability_lr, 'speechiness': speechiness_lr, 'acousticness': acousticness_lr, 'instrumentalness': instrumentalness_lr, 'liveness': liveness_lr, 'valence': valence_lr, 'loudness': loudness_lr, 'tempo': tempo_lr, 'key': key_lr, 'mode': mode_lr, 'duration_min': duration_lr, 'release_year': release_yr_lr}
+            
+            if inclure_genre_global and genre_choisi_lr:
+                for col in GENRE_FEATURES:
+                    input_dict[col] = 1 if col == f'playlist_genre_{genre_choisi_lr}' else 0
+                in_lr = pd.DataFrame([input_dict])[FEATURES_ENERGY_AVEC]
+            else:
+                in_lr = pd.DataFrame([input_dict])[NUMERIC_FEATURES]
+
+            pred_lr = np.clip(model_lr_multi_actif.predict(in_lr)[0], 0, 1)
             st.markdown(f"<div class='big-font'>⚡ ÉNERGIE CALCULÉE : {pred_lr:.2f} / 1.00</div>", unsafe_allow_html=True)
             st.progress(float(pred_lr))
 
@@ -285,18 +326,18 @@ if page_choisie == "⚡ Prédire l'Énergie":
             st.pyplot(plot_scatter_custom(y_test_l, y_pred_rf_l, "RF Simple A (Loudness)", couleur_principale))
         st.divider()
         
-        st.header("3. RF Multiple : La vraie puissance des Forêts Aléatoires")
+        st.header(f"3. RF {nom_modele} : La vraie puissance des Forêts Aléatoires")
         st.code("model_rf_multi = RandomForestRegressor(random_state=42).fit(X_train_m, y_train_m)", language="python")
         col_rfm1, col_rfm2 = st.columns([1, 2])
-        y_pred_rf_m = model_rf_multi.predict(X_test_m)
+        y_pred_rf_m = model_rf_multi_actif.predict(X_test_m_actif)
         with col_rfm1:
-            st.metric("🏆 Précision (R² Test)", f"{r2_score(y_test_m, y_pred_rf_m):.3f}")
-            st.metric("📉 Erreur (MAE Test)", f"{mean_absolute_error(y_test_m, y_pred_rf_m):.3f}")
+            st.metric("🏆 Précision (R² Test)", f"{r2_score(y_test_m_actif, y_pred_rf_m):.3f}")
+            st.metric("📉 Erreur (MAE Test)", f"{mean_absolute_error(y_test_m_actif, y_pred_rf_m):.3f}")
         with col_rfm2:
-            st.pyplot(plot_scatter_custom(y_test_m, y_pred_rf_m, "Random Forest Multiple", couleur_principale))
+            st.pyplot(plot_scatter_custom(y_test_m_actif, y_pred_rf_m, f"Random Forest {nom_modele}", couleur_principale))
 
         st.subheader("Bilan Comparatif Final (Random Forest)")
-        df_comparatif_rf = pd.DataFrame([calc_metrics_dict(model_rf_loud, X_test_l, y_test_l), calc_metrics_dict(model_rf_aco, X_test_a, y_test_a), calc_metrics_dict(model_rf_multi, X_test_m, y_test_m)], index=["1. RF Simple (Loudness)", "2. RF Simple (Acousticness)", "3. RF Multiple (Toutes variables)"])
+        df_comparatif_rf = pd.DataFrame([calc_metrics_dict(model_rf_loud, X_test_l, y_test_l), calc_metrics_dict(model_rf_aco, X_test_a, y_test_a), calc_metrics_dict(model_rf_multi_actif, X_test_m_actif, y_test_m_actif)], index=["1. RF Simple (Loudness)", "2. RF Simple (Acousticness)", f"3. RF {nom_modele}"])
         
         styled_df_rf = df_comparatif_rf.style\
             .format("{:.3f}")\
@@ -306,6 +347,11 @@ if page_choisie == "⚡ Prédire l'Énergie":
         st.divider()
 
         st.header("4. Testez le Random Forest 🎛️")
+        
+        genre_choisi_rf = None
+        if inclure_genre_global:
+            genre_choisi_rf = st.selectbox("🎸 Genre Musical :", options=['pop', 'rap', 'rock', 'latin', 'r&b', 'edm'], key="genre_rf")
+
         with st.form("form_rf", border=True):
             col_r1, col_r2, col_r3 = st.columns(3)
             with col_r1:
@@ -326,8 +372,16 @@ if page_choisie == "⚡ Prédire l'Énergie":
             sub_rf = st.form_submit_button("⚡ PRÉDIRE (RANDOM FOREST)", use_container_width=True)
 
         if sub_rf:
-            in_rf = pd.DataFrame([{'danceability': danceability_rf, 'speechiness': speechiness_rf, 'acousticness': acousticness_rf, 'instrumentalness': instrumentalness_rf, 'liveness': liveness_rf, 'valence': valence_rf, 'loudness': loudness_rf, 'tempo': tempo_rf, 'key': key_rf, 'mode': mode_rf, 'duration_min': duration_rf, 'release_year': release_yr_rf}])[FEATURES_REG]
-            pred_rf = np.clip(model_rf_multi.predict(in_rf)[0], 0, 1)
+            input_dict = {'danceability': danceability_rf, 'speechiness': speechiness_rf, 'acousticness': acousticness_rf, 'instrumentalness': instrumentalness_rf, 'liveness': liveness_rf, 'valence': valence_rf, 'loudness': loudness_rf, 'tempo': tempo_rf, 'key': key_rf, 'mode': mode_rf, 'duration_min': duration_rf, 'release_year': release_yr_rf}
+            
+            if inclure_genre_global and genre_choisi_rf:
+                for col in GENRE_FEATURES:
+                    input_dict[col] = 1 if col == f'playlist_genre_{genre_choisi_rf}' else 0
+                in_rf = pd.DataFrame([input_dict])[FEATURES_ENERGY_AVEC]
+            else:
+                in_rf = pd.DataFrame([input_dict])[NUMERIC_FEATURES]
+
+            pred_rf = np.clip(model_rf_multi_actif.predict(in_rf)[0], 0, 1)
             st.markdown(f"<div class='big-font'>⚡ ÉNERGIE CALCULÉE : {pred_rf:.2f} / 1.00</div>", unsafe_allow_html=True)
             st.progress(float(pred_rf))
 
@@ -367,6 +421,9 @@ elif page_choisie == "🔥 Prédire la Popularité (Bonus)":
         st.divider()
 
         st.header("4. Testez la Machine à Succès (Linéaire) 🎛️")
+        
+        genre_choisi_plr = st.selectbox("🎸 Genre Musical :", options=['pop', 'rap', 'rock', 'latin', 'r&b', 'edm'], key="genre_plr")
+
         with st.form("form_pop_lr", border=True):
             col_s1, col_s2, col_s3 = st.columns(3)
             with col_s1:
@@ -387,7 +444,11 @@ elif page_choisie == "🔥 Prédire la Popularité (Bonus)":
             sub_lr = st.form_submit_button("🔥 PRÉDIRE LA POPULARITÉ (LINÉAIRE)", use_container_width=True)
 
         if sub_lr:
-            in_lr = pd.DataFrame([{'danceability': danceability_lr, 'speechiness': speechiness_lr, 'acousticness': acousticness_lr, 'instrumentalness': instrumentalness_lr, 'liveness': liveness_lr, 'valence': valence_lr, 'loudness': loudness_lr, 'tempo': tempo_lr, 'key': key_lr, 'mode': mode_lr, 'duration_min': duration_lr, 'release_year': release_yr_lr}])[FEATURES_REG]
+            input_dict = {'danceability': danceability_lr, 'speechiness': speechiness_lr, 'acousticness': acousticness_lr, 'instrumentalness': instrumentalness_lr, 'liveness': liveness_lr, 'valence': valence_lr, 'loudness': loudness_lr, 'tempo': tempo_lr, 'key': key_lr, 'mode': mode_lr, 'duration_min': duration_lr, 'release_year': release_yr_lr}
+            for col in GENRE_FEATURES:
+                input_dict[col] = 1 if col == f'playlist_genre_{genre_choisi_plr}' else 0
+
+            in_lr = pd.DataFrame([input_dict])[FEATURES_POP]
             pred_lr = np.clip(model_pop_lr_multi.predict(in_lr)[0], 0, 100)
             st.markdown(f"<div class='big-font'>🔥 SCORE DE SUCCÈS : {pred_lr:.1f} / 100</div>", unsafe_allow_html=True)
             st.progress(int(pred_lr))
@@ -414,6 +475,9 @@ elif page_choisie == "🔥 Prédire la Popularité (Bonus)":
         st.divider()
 
         st.header("4. Testez la Machine à Succès (Random Forest) 🎛️")
+        
+        genre_choisi_prf = st.selectbox("🎸 Genre Musical :", options=['pop', 'rap', 'rock', 'latin', 'r&b', 'edm'], key="genre_prf")
+
         with st.form("form_pop_rf", border=True):
             col_r1, col_r2, col_r3 = st.columns(3)
             with col_r1:
@@ -434,8 +498,10 @@ elif page_choisie == "🔥 Prédire la Popularité (Bonus)":
             sub_rf = st.form_submit_button("🔥 PRÉDIRE LA POPULARITÉ (RANDOM FOREST)", use_container_width=True)
 
         if sub_rf:
-            in_rf = pd.DataFrame([{'danceability': danceability_rf, 'speechiness': speechiness_rf, 'acousticness': acousticness_rf, 'instrumentalness': instrumentalness_rf, 'liveness': liveness_rf, 'valence': valence_rf, 'loudness': loudness_rf, 'tempo': tempo_rf, 'key': key_rf, 'mode': mode_rf, 'duration_min': duration_rf, 'release_year': release_yr_rf}])[FEATURES_REG]
+            input_dict = {'danceability': danceability_rf, 'speechiness': speechiness_rf, 'acousticness': acousticness_rf, 'instrumentalness': instrumentalness_rf, 'liveness': liveness_rf, 'valence': valence_rf, 'loudness': loudness_rf, 'tempo': tempo_rf, 'key': key_rf, 'mode': mode_rf, 'duration_min': duration_rf, 'release_year': release_yr_rf}
+            for col in GENRE_FEATURES:
+                input_dict[col] = 1 if col == f'playlist_genre_{genre_choisi_prf}' else 0
+
+            in_rf = pd.DataFrame([input_dict])[FEATURES_POP]
             pred_rf = np.clip(model_pop_rf_multi.predict(in_rf)[0], 0, 100)
             st.markdown(f"<div class='big-font'>🔥 SCORE DE SUCCÈS : {pred_rf:.1f} / 100</div>", unsafe_allow_html=True)
-
-
