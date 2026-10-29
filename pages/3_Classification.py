@@ -45,18 +45,18 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-st.title(" Prédire le genre musical : Démarche et Modélisation")
+st.title("🎵 Prédire le genre musical : Démarche et Modélisation")
 
-st.info(" **Notre défi :** L'algorithme peut-il classer automatiquement un morceau dans l'un des 6 grands genres de la plateforme, uniquement à partir de ses données techniques ?")
+st.info("🎯 **Notre défi :** L'algorithme peut-il classer automatiquement un morceau dans l'un des 6 grands genres de la plateforme, uniquement à partir de ses données techniques ?")
 
 st.markdown("""
 Cette page présente notre modèle de **Classification** conçu pour prédire la variable cible **`playlist_genre`**.
 Les genres possibles sont : `edm`, `latin`, `pop`, `r&b`, `rap`, et `rock`.
 
 **Notre démarche s'articule autour du modèle Random Forest, choisi pour ses performances supérieures :**
-1.  **Séparation Stratifiée (Train/Test)** pour garantir que chaque genre soit équitablement représenté.
-2.  **Évaluation Globale** via des métriques spécifiques à la classification (Accuracy, F1-Score).
-3.  **Analyse Fine (Matrice de Confusion)** pour comprendre quels genres l'IA confond.
+1. 🧮 **Séparation Stratifiée (Train/Test)** pour garantir que chaque genre soit équitablement représenté.
+2. 📊 **Évaluation Globale** via des métriques spécifiques à la classification (Accuracy, F1-Score).
+3. 📉 **Analyse Fine (Matrice de Confusion)** pour comprendre quels genres l'IA confond.
 """)
 st.divider()
 
@@ -67,7 +67,6 @@ st.divider()
 def prepare_classification_data():
     df = load_data()
     df_clean = clean_data(df)
-    
     
     features_finales = FEATURES_CLF + ['track_popularity']
     
@@ -80,18 +79,13 @@ def prepare_classification_data():
     
     return df_clean, X_train, X_test, y_train, y_test
 
-with st.spinner(" Chargement du catalogue et préparation du fractionnement..."):
+with st.spinner("⏳ Chargement du catalogue et préparation du fractionnement..."):
     df_clf, X_train_c, X_test_c, y_train_c, y_test_c = prepare_classification_data()
 
 @st.cache_resource
 def load_classification_model():
-    # __file__ représente le fichier actuel (pages/3_Classification.py)
-    # On remonte d'un cran ('..') pour cibler le dossier racine du projet
     racine_projet = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-    
-    # On construit le chemin exact vers ton dossier notebooks/models/
     chemin_modele = os.path.join(racine_projet, 'notebooks', 'models', 'classification.joblib')
-    
     return joblib.load(chemin_modele)
 
 try:
@@ -106,7 +100,7 @@ y_pred_c = model_clf.predict(X_test_c)
 # =========================================================
 # 1. Performances Globales
 # =========================================================
-st.header("1. Performances du modèle Random Forest")
+st.header("1. 🏆 Performances du modèle Random Forest")
 st.markdown("Ce modèle d'assemblage d'arbres décisionnels a surpassé la régression logistique et le KNN sur notre jeu de données.")
 
 col_c1, col_c2, col_c3, col_c4 = st.columns(4)
@@ -115,16 +109,20 @@ col_c2.metric("Précision (Macro)", f"{precision_score(y_test_c, y_pred_c, avera
 col_c3.metric("Rappel (Macro)", f"{recall_score(y_test_c, y_pred_c, average='macro'):.3f}")
 col_c4.metric("F1-Score (Macro)", f"{f1_score(y_test_c, y_pred_c, average='macro'):.3f}")
 
-st.markdown("""
-* **Justification de la métrique :** Bien que l'*Accuracy* indique que nous classons correctement environ 60% des morceaux, le **F1-Score Macro** est la métrique clé. Il effectue la moyenne harmonique entre précision et rappel sans favoriser les classes majoritaires. 
-* Un score de 60% peut sembler modeste, mais dans un exercice à 6 classes où le hasard pur donnerait **16.67%**, le modèle prouve qu'il comprend la structure musicale des pistes.
-""")
+with st.expander("🧐 Le Plafond de verre : Pourquoi stagnons-nous autour de 60 % ?"):
+    st.markdown("""
+    Après de très nombreux tests et un nettoyage approfondi du DataFrame (suppression des doublons via `track_id`, traitement minutieux des types, ajout de variables saines et corrélées comme `track_popularity`), **les performances se stabilisent naturellement autour de 60 %.**
+    
+    Ce résultat n'est pas un bug dans le code ou un manque d'optimisation. Il représente une limite inhérente à la nature même de la musique : le **chevauchement acoustique naturel**. 
+    De nombreux genres musicaux (comme la Pop, le R&B, et la musique Latin) partagent des profils audio et des rythmiques très proches. Une musique Pop peut être très inspirée R&B, rendant la frontière floue même pour une oreille humaine.
+    """)
+
 st.divider()
 
 # =========================================================
 # 2. Analyse Approfondie : Matrice de Confusion
 # =========================================================
-st.header("2. Où le modèle se trompe-t-il ? (Matrice de confusion)")
+st.header("2. 📉 Où le modèle se trompe-t-il ? (Matrice de confusion)")
 st.markdown("La matrice de confusion détaille précisément comment le modèle classe chaque genre. La diagonale représente les bonnes prédictions.")
 
 fig_cm, ax_cm = plt.subplots(figsize=(8, 6))
@@ -136,18 +134,18 @@ st.pyplot(fig_cm)
 
 st.markdown("""
 **Interprétation Musicale :**
-* Le **Rock** et l'**EDM** sont les plus faciles à détecter pour l'IA, car leurs caractéristiques (comme le volume ou le tempo) sont extrêmement distinctes.
-* La **Pop** est le genre le plus souvent confondu, particulièrement avec le R&B ou la musique Latine. C'est logiquement normal : la musique "populaire" emprunte par définition les rythmiques et structures des autres genres à succès.
+* 🎸 **Le Rock et l'EDM** sont les genres les plus faciles à reconnaître pour l'algorithme. Leurs signatures acoustiques (tempo rapide et régulier pour l'EDM, forte instrumentalité et énergie pour le Rock) sont très claires.
+* 🎤 **La Pop** est la classe la plus souvent confondue par notre modèle. Cela est totalement cohérent d'un point de vue musical : la Pop est un genre "carrefour" qui se nourrit des codes de l'EDM, du R&B ou du Rap pour toucher un large public.
 """)
 st.divider()
 
 # =========================================================
 # 3. Simulateur Interactif & Analyseur de Catalogue
 # =========================================================
-st.header("3.  Testez le Modèle : L'Analyseur de Genre")
+st.header("3. 🎛️ Testez le Modèle : L'Analyseur de Genre")
 st.markdown("Jouez avec les caractéristiques d'un morceau fictif, ou choisissez un vrai titre du catalogue pour voir comment l'algorithme répartit ses probabilités entre les 6 genres.")
 
-tab_manual, tab_catalog = st.tabs(["Créer un morceau manuellement", "Analyser un titre du catalogue"])
+tab_manual, tab_catalog = st.tabs(["🎚️ Créer un morceau manuellement", "🔍 Analyser un titre du catalogue"])
 
 # Onglet A : Saisie manuelle
 with tab_manual:
@@ -155,17 +153,17 @@ with tab_manual:
         col_m1, col_m2, col_m3 = st.columns(3)
         
         with col_m1:
-            danceability_m = st.slider("Danceability", 0.0, 1.0, 0.5, 0.05, key="m_dan")
-            energy_m = st.slider("Energy", 0.0, 1.0, 0.7, 0.05, key="m_nrj")
-            speechiness_m = st.slider("Speechiness", 0.0, 1.0, 0.1, 0.05, key="m_spe")
-            acousticness_m = st.slider("Acousticness", 0.0, 1.0, 0.5, 0.05, key="m_aco")
-            instrumentalness_m = st.slider("Instrumentalness", 0.0, 1.0, 0.0, 0.05, key="m_ins")
+            danceability_m = st.slider("🕺 Danceability", 0.0, 1.0, 0.5, 0.05, key="m_dan")
+            energy_m = st.slider("⚡ Energy", 0.0, 1.0, 0.7, 0.05, key="m_nrj")
+            speechiness_m = st.slider("🗣️ Speechiness", 0.0, 1.0, 0.1, 0.05, key="m_spe")
+            acousticness_m = st.slider("🎸 Acousticness", 0.0, 1.0, 0.5, 0.05, key="m_aco")
+            instrumentalness_m = st.slider("🎻 Instrumentalness", 0.0, 1.0, 0.0, 0.05, key="m_ins")
             
         with col_m2:
-            liveness_m = st.slider("Liveness", 0.0, 1.0, 0.2, 0.05, key="m_liv")
-            valence_m = st.slider("Valence", 0.0, 1.0, 0.5, 0.05, key="m_val")
-            loudness_m = st.slider("Loudness (dB)", -60.0, 0.0, -5.0, 0.5, key="m_lou")
-            tempo_m = st.number_input("Tempo (BPM)", 0.0, 250.0, 120.0, key="m_tem")
+            liveness_m = st.slider("🎤 Liveness", 0.0, 1.0, 0.2, 0.05, key="m_liv")
+            valence_m = st.slider("😊 Valence", 0.0, 1.0, 0.5, 0.05, key="m_val")
+            loudness_m = st.slider("🔊 Loudness (dB)", -60.0, 0.0, -5.0, 0.5, key="m_lou")
+            tempo_m = st.number_input("⏱️ Tempo (BPM)", 0.0, 250.0, 120.0, key="m_tem")
             
         with col_m3:
             key_m = st.selectbox("🎹 Key", options=list(range(12)), key="m_key")
@@ -174,7 +172,7 @@ with tab_manual:
             release_year_m = st.number_input("📅 Année", 1950, 2026, 2020, key="m_yea")
             popularity_m = st.slider("⭐ Popularité", 0, 100, 50, key="m_pop")
 
-        submit_manual = st.form_submit_button("CLASSIFIER CE MORCEAU FICTIF", use_container_width=True)
+        submit_manual = st.form_submit_button("🔮 CLASSIFIER CE MORCEAU FICTIF", use_container_width=True)
 
 # Onglet B : Catalogue existant
 with tab_catalog:
