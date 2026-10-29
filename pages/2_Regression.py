@@ -1,5 +1,3 @@
-<<<<<<< HEAD
-=======
 # =========================================================
 # Configuration des chemins d'importation
 # =========================================================
@@ -183,4 +181,3 @@ if submit_button:
     
     st.success(f"### Énergie prédite : {prediction_bounded:.2f} / 1.00")
     st.progress(float(prediction_bounded))
->>>>>>> fb37c975811ab2c2c64ebdff8d19f4396f74ba51
