@@ -86,7 +86,7 @@ with st.spinner("⏳ Chargement du catalogue et préparation du fractionnement..
 @st.cache_resource
 def load_classification_model():
     racine_projet = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-    chemin_modele = os.path.join(racine_projet, 'notebooks', 'models', 'classification.joblib')
+    chemin_modele = os.path.join(racine_projet, 'models', 'classification.joblib')
     return joblib.load(chemin_modele)
 
 try:
