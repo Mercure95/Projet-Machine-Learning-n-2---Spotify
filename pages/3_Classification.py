@@ -1,92 +1,225 @@
+# =========================================================
+# Configuration des chemins d'importation
+# =========================================================
+import sys
+import os
+import time
+
+# Permet à Python de trouver les fichiers config.py et data.py à la racine
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 import streamlit as st
 import pandas as pd
-import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
 import joblib
+import numpy as np
+
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, confusion_matrix, ConfusionMatrixDisplay
+
+# Import des configurations communes
+from config import RANDOM_STATE, TEST_SIZE, TARGET_CLF, FEATURES_CLF
 from data import load_data, clean_data
 
 st.set_page_config(page_title="Classification - Genre", page_icon="🎵", layout="wide")
 
-st.title("🎵 Prédire le genre musical d'un morceau")
-
-# --- 1. PRÉSENTATION DU MODÈLE ---
-st.header("1. Performances du modèle")
+# =========================================================
+# CSS Personnalisé (Thème Spotify DA)
+# =========================================================
 st.markdown("""
-*En attente des résultats de l'équipe ML.*
-* **Modèle choisi :** Régression Logistique / KNN / Random Forest
-* **Variable cible :** `playlist_genre` (6 classes : edm, latin, pop, r&b, rap, rock)
-* **Variables explicatives :** Caractéristiques audio, durée, année
+    <style>
+    .big-font {
+        font-size: 45px !important;
+        font-weight: 900;
+        color: #1DB954; /* Vert Spotify */
+        text-align: center;
+        margin-top: 10px;
+        margin-bottom: 20px;
+        text-shadow: 0px 2px 4px rgba(0,0,0,0.3);
+        letter-spacing: -1px;
+    }
+    div[data-testid="stMetricValue"] {
+        color: #1DB954;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+st.title(" Prédire le genre musical : Démarche et Modélisation")
+
+st.info(" **Notre défi :** L'algorithme peut-il classer automatiquement un morceau dans l'un des 6 grands genres de la plateforme, uniquement à partir de ses données techniques ?")
+
+st.markdown("""
+Cette page présente notre modèle de **Classification** conçu pour prédire la variable cible **`playlist_genre`**.
+Les genres possibles sont : `edm`, `latin`, `pop`, `r&b`, `rap`, et `rock`.
+
+**Notre démarche s'articule autour du modèle Random Forest, choisi pour ses performances supérieures :**
+1.  **Séparation Stratifiée (Train/Test)** pour garantir que chaque genre soit équitablement représenté.
+2.  **Évaluation Globale** via des métriques spécifiques à la classification (Accuracy, F1-Score).
+3.  **Analyse Fine (Matrice de Confusion)** pour comprendre quels genres l'IA confond.
 """)
-
-col1, col2, col3, col4 = st.columns(4)
-col1.metric("Accuracy (Test)", "À venir...")
-col2.metric("Précision", "À venir...")
-col3.metric("Rappel", "À venir...")
-col4.metric("Score F1", "À venir...")
-
-st.info("Ici viendra la matrice de confusion (Confusion Matrix) générée par l'équipe.")
 st.divider()
 
-# Chargement des données pour le sélecteur
-df = clean_data(load_data())
-genres_cibles = ['edm', 'latin', 'pop', 'r&b', 'rap', 'rock']
+# =========================================================
+# Chargement des données et préparation en cache
+# =========================================================
+@st.cache_data(show_spinner=False)
+def prepare_classification_data():
+    df = load_data()
+    df_clean = clean_data(df)
+    
+    
+    features_finales = FEATURES_CLF + ['track_popularity']
+    
+    X = df_clean[features_finales]
+    y = df_clean[TARGET_CLF]
+    
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=TEST_SIZE, random_state=RANDOM_STATE, stratify=y
+    )
+    
+    return df_clean, X_train, X_test, y_train, y_test
 
-# --- 2. FORMULAIRE DE PRÉDICTION ---
-st.header("2. Testez le modèle 🎛️")
+with st.spinner(" Chargement du catalogue et préparation du fractionnement..."):
+    df_clf, X_train_c, X_test_c, y_train_c, y_test_c = prepare_classification_data()
 
-# Système d'onglets pour séparer le test manuel du test sur morceau existant
-tab1, tab2 = st.tabs(["Saisie manuelle", "Choisir un morceau existant"])
+@st.cache_resource
+def load_classification_model():
+    # __file__ représente le fichier actuel (pages/3_Classification.py)
+    # On remonte d'un cran ('..') pour cibler le dossier racine du projet
+    racine_projet = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+    
+    # On construit le chemin exact vers ton dossier notebooks/models/
+    chemin_modele = os.path.join(racine_projet, 'notebooks', 'models', 'classification.joblib')
+    
+    return joblib.load(chemin_modele)
 
-with tab1:
-    with st.form("classification_form"):
-        col_a, col_b, col_c = st.columns(3)
+try:
+    model_clf = load_classification_model()
+except FileNotFoundError:
+    st.error("Modèle introuvable. Exécutez le notebook 03_classification.ipynb pour générer 'models/classification.joblib'.")
+    st.stop()
+
+# Génération des prédictions sur le test set
+y_pred_c = model_clf.predict(X_test_c)
+
+# =========================================================
+# 1. Performances Globales
+# =========================================================
+st.header("1. Performances du modèle Random Forest")
+st.markdown("Ce modèle d'assemblage d'arbres décisionnels a surpassé la régression logistique et le KNN sur notre jeu de données.")
+
+col_c1, col_c2, col_c3, col_c4 = st.columns(4)
+col_c1.metric("Accuracy Globale", f"{accuracy_score(y_test_c, y_pred_c):.3f}")
+col_c2.metric("Précision (Macro)", f"{precision_score(y_test_c, y_pred_c, average='macro'):.3f}")
+col_c3.metric("Rappel (Macro)", f"{recall_score(y_test_c, y_pred_c, average='macro'):.3f}")
+col_c4.metric("F1-Score (Macro)", f"{f1_score(y_test_c, y_pred_c, average='macro'):.3f}")
+
+st.markdown("""
+* **Justification de la métrique :** Bien que l'*Accuracy* indique que nous classons correctement environ 60% des morceaux, le **F1-Score Macro** est la métrique clé. Il effectue la moyenne harmonique entre précision et rappel sans favoriser les classes majoritaires. 
+* Un score de 60% peut sembler modeste, mais dans un exercice à 6 classes où le hasard pur donnerait **16.67%**, le modèle prouve qu'il comprend la structure musicale des pistes.
+""")
+st.divider()
+
+# =========================================================
+# 2. Analyse Approfondie : Matrice de Confusion
+# =========================================================
+st.header("2. Où le modèle se trompe-t-il ? (Matrice de confusion)")
+st.markdown("La matrice de confusion détaille précisément comment le modèle classe chaque genre. La diagonale représente les bonnes prédictions.")
+
+fig_cm, ax_cm = plt.subplots(figsize=(8, 6))
+cm = confusion_matrix(y_test_c, y_pred_c, labels=model_clf.classes_)
+disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=model_clf.classes_)
+disp.plot(cmap=plt.cm.Blues, ax=ax_cm, xticks_rotation=45)
+ax_cm.set_title("Matrice de Confusion (Données de Test)", fontweight='bold')
+st.pyplot(fig_cm)
+
+st.markdown("""
+**Interprétation Musicale :**
+* Le **Rock** et l'**EDM** sont les plus faciles à détecter pour l'IA, car leurs caractéristiques (comme le volume ou le tempo) sont extrêmement distinctes.
+* La **Pop** est le genre le plus souvent confondu, particulièrement avec le R&B ou la musique Latine. C'est logiquement normal : la musique "populaire" emprunte par définition les rythmiques et structures des autres genres à succès.
+""")
+st.divider()
+
+# =========================================================
+# 3. Simulateur Interactif & Analyseur de Catalogue
+# =========================================================
+st.header("3.  Testez le Modèle : L'Analyseur de Genre")
+st.markdown("Jouez avec les caractéristiques d'un morceau fictif, ou choisissez un vrai titre du catalogue pour voir comment l'algorithme répartit ses probabilités entre les 6 genres.")
+
+tab_manual, tab_catalog = st.tabs(["Créer un morceau manuellement", "Analyser un titre du catalogue"])
+
+# Onglet A : Saisie manuelle
+with tab_manual:
+    with st.form("clf_manual_form", border=True):
+        col_m1, col_m2, col_m3 = st.columns(3)
         
-        with col_a:
-            danceability = st.slider("Danceability", 0.0, 1.0, 0.5, key="c_dance")
-            energy = st.slider("Energy", 0.0, 1.0, 0.7, key="c_nrj") # Ajouté pour la classification
-            speechiness = st.slider("Speechiness", 0.0, 1.0, 0.1, key="c_speech")
-            acousticness = st.slider("Acousticness", 0.0, 1.0, 0.5, key="c_acous")
-            instrumentalness = st.slider("Instrumentalness", 0.0, 1.0, 0.0, key="c_instru")
+        with col_m1:
+            danceability_m = st.slider("Danceability", 0.0, 1.0, 0.5, 0.05, key="m_dan")
+            energy_m = st.slider("Energy", 0.0, 1.0, 0.7, 0.05, key="m_nrj")
+            speechiness_m = st.slider("Speechiness", 0.0, 1.0, 0.1, 0.05, key="m_spe")
+            acousticness_m = st.slider("Acousticness", 0.0, 1.0, 0.5, 0.05, key="m_aco")
+            instrumentalness_m = st.slider("Instrumentalness", 0.0, 1.0, 0.0, 0.05, key="m_ins")
             
-        with col_b:
-            liveness = st.slider("Liveness", 0.0, 1.0, 0.2, key="c_live")
-            valence = st.slider("Valence (Positivité)", 0.0, 1.0, 0.5, key="c_val")
-            loudness = st.slider("Loudness (dB)", -60.0, 0.0, -10.0, key="c_loud")
-            tempo = st.slider("Tempo (BPM)", 0.0, 250.0, 120.0, key="c_tempo")
+        with col_m2:
+            liveness_m = st.slider("Liveness", 0.0, 1.0, 0.2, 0.05, key="m_liv")
+            valence_m = st.slider("Valence", 0.0, 1.0, 0.5, 0.05, key="m_val")
+            loudness_m = st.slider("Loudness (dB)", -60.0, 0.0, -5.0, 0.5, key="m_lou")
+            tempo_m = st.number_input("Tempo (BPM)", 0.0, 250.0, 120.0, key="m_tem")
             
-        with col_c:
-            key_val = st.selectbox("Tonalité (Key)", options=list(range(12)), key="c_key")
-            mode = st.selectbox("Mode (1=Majeur, 0=Mineur)", options=[0, 1], key="c_mode")
-            duration_min = st.number_input("Durée (minutes)", min_value=0.5, max_value=20.0, value=3.5, key="c_dur")
-            release_year = st.number_input("Année de sortie", min_value=1950, max_value=2026, value=2020, key="c_year")
+        with col_m3:
+            key_m = st.selectbox("🎹 Key", options=list(range(12)), key="m_key")
+            mode_m = st.selectbox("🎼 Mode", options=[0, 1], key="m_mod")
+            duration_min_m = st.number_input("⏳ Durée (min)", 0.5, 20.0, 3.5, key="m_dur")
+            release_year_m = st.number_input("📅 Année", 1950, 2026, 2020, key="m_yea")
+            popularity_m = st.slider("⭐ Popularité", 0, 100, 50, key="m_pop")
 
-        submit_manual = st.form_submit_button(label="🔮 Prédire le genre")
+        submit_manual = st.form_submit_button("CLASSIFIER CE MORCEAU FICTIF", use_container_width=True)
 
-with tab2:
-    titres_dispos = df['track_name'].dropna().unique()
-    titre_choisi = st.selectbox("Rechercher un morceau du catalogue :", titres_dispos)
-    submit_auto = st.button("🔮 Analyser ce morceau")
+# Onglet B : Catalogue existant
+with tab_catalog:
+    titres_disponibles = df_clf['track_name'].dropna().unique()
+    titre_choisi = st.selectbox("Rechercher un morceau dans la base Spotify :", titres_disponibles)
+    submit_auto = st.button("🔮 ANALYSER CE TITRE RÉEL", use_container_width=True, type="primary")
 
-# --- 3. LOGIQUE DE PRÉDICTION (MOCKING) ---
+# Exécution de la prédiction
 if submit_manual or submit_auto:
-    if submit_auto:
-        # Récupération des données du morceau sélectionné
-        morceau_data = df[df['track_name'] == titre_choisi].iloc[0]
-        st.write(f"**Genre réel du morceau dans le dataset :** {morceau_data['playlist_genre'].upper()}")
+    with st.spinner("Analyse des vecteurs audio en cours..."):
+        time.sleep(0.8) # Effet visuel
         
-    # ⚠️ MOCKING : Fausse prédiction de probabilités (somme = 1)
-    probas = np.random.dirichlet(np.ones(6), size=1)[0]
-    df_probas = pd.DataFrame({"Probabilités": probas}, index=genres_cibles)
-    genre_predit = genres_cibles[np.argmax(probas)]
-    
-    # -- CODE FINAL À DÉCOMMENTER QUAND LE MODÈLE SERA PRÊT --
-    # model_clf = joblib.load("models/classification.joblib")
-    # probas = model_clf.predict_proba(user_data)[0]
-    # classes = model_clf.classes_
-    # df_probas = pd.DataFrame({"Probabilités": probas}, index=classes)
-    # genre_predit = classes[np.argmax(probas)]
-    
-    st.success(f"🎵 Genre musical prédit : **{genre_predit.upper()}**")
-    
-    # Affichage du graphique en barres des probabilités
-    st.subheader("Détail des probabilités par genre")
-    st.bar_chart(df_probas)
+        if submit_auto:
+            # Récupération de la première occurrence du morceau sélectionné
+            morceau_data = df_clf[df_clf['track_name'] == titre_choisi].iloc[0]
+            genre_reel = morceau_data['playlist_genre'].upper()
+            st.info(f"**Vrai genre attribué par Spotify :** {genre_reel}")
+            
+            # Préparation du dataframe d'entrée avec les bonnes colonnes
+            features_finales = FEATURES_CLF + ['track_popularity']
+            user_data = pd.DataFrame([morceau_data[features_finales]])
+        else:
+            # Construction du dataframe d'après le formulaire manuel
+            user_input = {
+                'danceability': [danceability_m], 'energy': [energy_m], 'speechiness': [speechiness_m],
+                'acousticness': [acousticness_m], 'instrumentalness': [instrumentalness_m],
+                'liveness': [liveness_m], 'valence': [valence_m], 'loudness': [loudness_m],
+                'tempo': [tempo_m], 'key': [key_m], 'mode': [mode_m],
+                'duration_min': [duration_min_m], 'release_year': [release_year_m],
+                'track_popularity': [popularity_m]
+            }
+            features_finales = FEATURES_CLF + ['track_popularity']
+            user_data = pd.DataFrame(user_input)[features_finales]
+
+        # Utilisation du modèle entraîné par l'équipe
+        probas = model_clf.predict_proba(user_data)[0]
+        classes = model_clf.classes_
+        
+        # Identification du genre gagnant
+        genre_predit = classes[np.argmax(probas)]
+        
+        # Formatage des probabilités pour le graphique (en %)
+        df_probas = pd.DataFrame({"Probabilité (%)": probas * 100}, index=classes)
+        
+        st.markdown(f"<div class='big-font'>🎵 GENRE PRÉDIT : {genre_predit.upper()}</div>", unsafe_allow_html=True)
+        
+        st.subheader("Répartition de la certitude du modèle")
+        st.bar_chart(df_probas, color="#1DB954")
