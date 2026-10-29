@@ -34,7 +34,8 @@ def clean_data(df):
         ] + AUDIO_FEATURES,
         keep="first"
     )
-    
+
+    # Partie 1 : Section 3
     df_clean['release_year'] = pd.to_datetime(df_clean['track_album_release_date'], format='mixed').dt.year
     df_clean['duration_min'] = df_clean['duration_ms'] / 60000
     df_clean['playlist_genre'] = df_clean['playlist_genre'].astype('category')
