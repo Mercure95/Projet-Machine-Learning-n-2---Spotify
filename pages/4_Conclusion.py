@@ -1,29 +1,50 @@
 import streamlit as st
 
-st.set_page_config(page_title="Conclusion", page_icon="🏁", layout="wide")
+# =========================================================
+# --- BLOC DA SPOTIFY À METTRE AU DÉBUT DE CHAQUE PAGE ---
+# =========================================================
+LOGO_ICON = "https://upload.wikimedia.org/wikipedia/commons/1/19/Spotify_logo_without_text.svg"
+LOGO_FULL = "https://upload.wikimedia.org/wikipedia/commons/2/26/Spotify_logo_with_text.svg"
 
-# =========================================================
-# CSS Personnalisé (Thème Spotify DA)
-# =========================================================
+# Logo dans l'onglet du navigateur
+st.set_page_config(page_title="Bilan et Conclusion", page_icon=LOGO_ICON, layout="wide")
+
+# Logo dans la barre latérale
+st.logo(LOGO_FULL)
+
+# Thème CSS Noir/Vert pour la page
 st.markdown("""
     <style>
+    .stApp { background-color: #121212; color: #FFFFFF; }
+    [data-testid="stSidebar"] { background-color: #000000; }
+    h1, h2, h3 { color: #1DB954 !important; font-weight: 900 !important; letter-spacing: -1px; }
+    div[data-testid="stMetricValue"] { color: #1DB954; }
+    .stProgress > div > div > div > div { background-color: #1DB954; }
     .big-font {
         font-size: 45px !important;
         font-weight: 900;
-        color: #1DB954; /* Vert Spotify */
+        color: #1DB954;
         text-align: center;
         margin-top: 10px;
         margin-bottom: 20px;
         text-shadow: 0px 2px 4px rgba(0,0,0,0.3);
         letter-spacing: -1px;
     }
-    div[data-testid="stMetricValue"] {
-        color: #1DB954;
+    [data-testid="stHeader"] {
+        display: none;
     }
     </style>
 """, unsafe_allow_html=True)
 
-st.title("🏁 Bilan et Conclusion")
+# Titre avec le logo Spotify à côté
+st.markdown(f"""
+<div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
+    <img src="{LOGO_ICON}" width="50">
+    <h1 style="margin: 0; font-size: 40px;">Bilan et Conclusion</h1>
+</div>
+""", unsafe_allow_html=True)
+# ---------------------------------------------------------
+
 st.markdown("Cette page synthétise les apprentissages de notre projet et apporte une réponse définitive à la start-up musicale concernant l'analyse technique des morceaux.")
 st.divider()
 
@@ -91,4 +112,4 @@ Pour aller plus loin et fournir un outil véritablement robuste (notamment pour 
 """)
 
 st.divider()
-st.markdown("<h3 style='text-align: center; color: #1DB954;'>🎉 Merci pour votre attention ! L'équipe est à votre disposition pour vos questions.</h3>", unsafe_allow_html=True)
+st.markdown("<h3 style='text-align: center; color: #1DB954;'> Merci pour votre attention ! L'équipe est à votre disposition pour vos questions.</h3>", unsafe_allow_html=True)

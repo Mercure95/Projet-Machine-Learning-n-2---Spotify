@@ -21,7 +21,15 @@ from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error
 from config import RANDOM_STATE, TEST_SIZE, TARGET_REG
 from data import load_data, clean_data
 
-st.set_page_config(page_title="Régression ML", page_icon="🤖", layout="wide")
+# --- BLOC DA SPOTIFY / DEEZER À METTRE AU DÉBUT DE LA PAGE ---
+LOGO_ICON = "https://upload.wikimedia.org/wikipedia/commons/1/19/Spotify_logo_without_text.svg"
+LOGO_FULL = "https://upload.wikimedia.org/wikipedia/commons/2/26/Spotify_logo_with_text.svg"
+
+# Logo dans l'onglet du navigateur
+st.set_page_config(page_title="Régression ML", page_icon=LOGO_ICON, layout="wide")
+
+# Logo dans la barre latérale
+st.logo(LOGO_FULL)
 
 # =========================================================
 # NAVIGATION PAR BARRE LATÉRALE (ROUTAGE)
@@ -29,18 +37,26 @@ st.set_page_config(page_title="Régression ML", page_icon="🤖", layout="wide")
 st.sidebar.title("Navigation Modèles")
 page_choisie = st.sidebar.radio("Sélectionnez l'étude :", ["⚡ Prédire l'Énergie", "🔥 Prédire la Popularité (Bonus)"])
 
-# Application de la DA (Couleurs) selon la page
+# Application de la DA (Couleurs) selon la page : Vert Spotify vs Violet Deezer
 if page_choisie == "⚡ Prédire l'Énergie":
     couleur_principale = "#1DB954" # Vert Spotify
     couleur_rgba = "rgba(29, 185, 84, 0.4)" # Vert transparent pour les tableaux
-    titre_page = "🎧 Prédire l'énergie : Démarche et Modélisation"
+    titre_page = " Prédire l'énergie : Démarche et Modélisation"
 else:
-    couleur_principale = "#FF5722" # Orange Feu
-    couleur_rgba = "rgba(255, 87, 34, 0.4)" # Orange transparent pour les tableaux
+    couleur_principale = "#A238FF" # Violet Deezer
+    couleur_rgba = "rgba(162, 56, 255, 0.4)" # Violet Deezer transparent pour les tableaux
     titre_page = "🔥 Prédire la Popularité : Le grand défi (Bonus)"
 
+# Thème CSS Noir + Couleur dynamique pour la page + classes spécifiques
 st.markdown(f"""
     <style>
+    .stApp {{ background-color: #121212; color: #FFFFFF; }}
+    [data-testid="stSidebar"] {{ background-color: #000000; }}
+    
+    /* ⚠️ Accolades doublées pour cacher la barre dans un f-string */
+    [data-testid="stHeader"] {{ display: none; }}
+    
+    h1, h2, h3 {{ color: {couleur_principale} !important; font-weight: 900 !important; letter-spacing: -1px; }}
     .big-font {{
         font-size: 45px !important;
         font-weight: 800;
@@ -58,6 +74,17 @@ st.markdown(f"""
     }}
     </style>
 """, unsafe_allow_html=True)
+
+# Titre avec le logo Spotify à côté
+st.markdown(f"""
+
+<div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
+    <img src="{LOGO_ICON}" width="50">
+    <h1 style="margin: 0; font-size: 40px;">{titre_page}</h1>
+</div>
+""", unsafe_allow_html=True)
+# ---------------------------------------------------------
+
 
 # =========================================================
 # FONCTIONS UTILITAIRES ET CHARGEMENTS EN CACHE
@@ -155,8 +182,6 @@ with st.spinner("⏳ Entraînement en mémoire de l'environnement (sans fichiers
 # =========================================================
 # CONTENU COMMUN : INTRODUCTION ET NETTOYAGE
 # =========================================================
-st.title(titre_page)
-
 if page_choisie == "⚡ Prédire l'Énergie":
     st.info("🎯 **Notre défi :** Peut-on deviner mathématiquement l'énergie d'un morceau de musique sans jamais l'écouter, uniquement en analysant ses caractéristiques techniques ?")
 else:

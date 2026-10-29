@@ -28,25 +28,40 @@ st.set_page_config(page_title="Classification - Genre", page_icon="🎵", layout
 # =========================================================
 # CSS Personnalisé (Thème Spotify DA)
 # =========================================================
+# --- BLOC DA SPOTIFY À METTRE AU DÉBUT DE CHAQUE PAGE ---
+LOGO_ICON = "https://upload.wikimedia.org/wikipedia/commons/1/19/Spotify_logo_without_text.svg"
+LOGO_FULL = "https://upload.wikimedia.org/wikipedia/commons/2/26/Spotify_logo_with_text.svg"
+
+# Logo dans l'onglet du navigateur
+st.set_page_config(page_title=" Prédire le genre musical : Démarche et Modélisation", page_icon=LOGO_ICON, layout="wide")
+
+# Logo dans la barre latérale
+st.logo(LOGO_FULL)
+
+# Thème CSS Noir/Vert pour la page
 st.markdown("""
     <style>
-    .big-font {
-        font-size: 45px !important;
-        font-weight: 900;
-        color: #1DB954; /* Vert Spotify */
-        text-align: center;
-        margin-top: 10px;
-        margin-bottom: 20px;
-        text-shadow: 0px 2px 4px rgba(0,0,0,0.3);
-        letter-spacing: -1px;
-    }
-    div[data-testid="stMetricValue"] {
-        color: #1DB954;
+    .stApp { background-color: #121212; color: #FFFFFF; }
+    [data-testid="stSidebar"] { background-color: #000000; }
+    h1, h2, h3 { color: #1DB954 !important; font-weight: 900 !important; letter-spacing: -1px; }
+    div[data-testid="stMetricValue"] { color: #1DB954; }
+    .stProgress > div > div > div > div { background-color: #1DB954; }
+    [data-testid="stHeader"] {
+        display: none;
     }
     </style>
 """, unsafe_allow_html=True)
 
-st.title("🎵 Prédire le genre musical : Démarche et Modélisation")
+# Titre avec le logo Spotify à côté
+st.markdown(f"""
+<div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
+    <img src="{LOGO_ICON}" width="50">
+    <h1 style="margin: 0; font-size: 40px;"> Prédire le genre musical : Démarche et Modélisation</h1>
+</div>
+""", unsafe_allow_html=True)
+# ---------------------------------------------------------
+
+
 
 st.info("🎯 **Notre défi :** L'algorithme peut-il classer automatiquement un morceau dans l'un des 6 grands genres de la plateforme, uniquement à partir de ses données techniques ?")
 

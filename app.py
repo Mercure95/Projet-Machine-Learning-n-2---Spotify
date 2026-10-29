@@ -1,38 +1,67 @@
 import streamlit as st
-from data import load_data, clean_data
 
-st.set_page_config(page_title="Spotify ML Project", page_icon="🔥", layout="wide")
+# 1. Configuration de la page (Logo dans l'onglet du navigateur)
+LOGO_ICON = "https://upload.wikimedia.org/wikipedia/commons/1/19/Spotify_logo_without_text.svg"
+LOGO_FULL = "https://upload.wikimedia.org/wikipedia/commons/2/26/Spotify_logo_with_text.svg"
 
-st.title("ᯤ Spotify Décrypter la musique avec Spotify")
+st.set_page_config(page_title="Spotify ML - Accueil", page_icon=LOGO_ICON, layout="wide")
+
+# 2. Logo dans le menu latéral (Streamlit >= 1.31)
+st.logo(LOGO_FULL)
+
+# 3. CSS Global "DA Spotify" (Noir et Vert)
 st.markdown("""
-**Contexte du projet :**
-Une start-up de la musique souhaite analyser automatiquement les morceaux à partir de leurs caractéristiques audio via l'API Spotify. 
-Notre objectif est double :
-1. **Régression :** Prédire l'énergie d'un morceau.
-2. **Classification :** Prédire le genre musical d'un morceau.
+    <style>
+    /* Masquer la barre supérieure par défaut de Streamlit */
+    [data-testid="stHeader"] {
+        display: none;
+    }
+    
+    /* Fond principal noir Spotify */
+    .stApp {
+        background-color: #121212;
+        color: #FFFFFF;
+    }
+    
+    /* Barre latérale noire très foncée */
+    [data-testid="stSidebar"] {
+        background-color: #000000;
+    }
+    
+    /* Forcer tous les titres en Vert Spotify avec la bonne police */
+    h1, h2, h3 {
+        color: #1DB954 !important;
+        font-weight: 900 !important;
+        letter-spacing: -1px;
+    }
+    
+    /* Styliser les métriques */
+    div[data-testid="stMetricValue"] {
+        color: #1DB954;
+    }
+    
+    /* Barre de progression */
+    .stProgress > div > div > div > div {
+        background-color: #1DB954;
+    }
+    </style>
+""", unsafe_allow_html=True)
 
-*Projet réalisé par : GOASDUFF Pierre, MARILLEAU Bastien, MARCHAND Erwann, SOICHET Quentin*
-""")
+# 4. Titre de la page avec Logo intégré
+st.markdown(f"""
+<div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
+    <img src="{LOGO_ICON}" width="65">
+    <h1 style="margin: 0; font-size: 55px;">Projet Machine Learning</h1>
+</div>
+""", unsafe_allow_html=True)
 
-st.divider()
+st.write("Bienvenue sur l'outil d'analyse musicale développé pour décrypter le catalogue Spotify.")
 
-with st.spinner("Chargement des données en cours..."):
-    df_brut = load_data()
-    df = clean_data(df_brut)
+st.info("👈 **Naviguez dans le menu de gauche** pour explorer les données, tester l'algorithme de Régression (énergie) ou l'algorithme de Classification (genres musicaux).")
 
-st.subheader("Aperçu du jeu de données")
-col1, col2 = st.columns(2)
-col1.metric("Nombre de morceaux (lignes)", df.shape[0])
-col2.metric("Nombre de variables (colonnes)", df.shape[1])
-
-st.dataframe(df.head(10))
-
-st.subheader("Dictionnaire des variables")
+st.header("Le jeu de données")
 st.markdown("""
-* **playlist_genre** : Cible classification (edm, latin, pop, r&b, rap, rock).
-* **energy** : Cible régression (0.0 à 1.0).
-* **danceability, speechiness, acousticness, instrumentalness, liveness, valence** : Indicateurs audio entre 0 et 1.
-* **loudness** : Volume moyen (dB).
-* **tempo** : Tempo (BPM).
-* **duration_min** : Durée de la piste en minutes.
+* **Source :** TidyTuesday (API Spotify)
+* **Volume :** ~32 800 morceaux
+* **Objectif :** Décrypter la musique à travers ses composantes mathématiques (tempo, volume, acoustique, etc.).
 """)

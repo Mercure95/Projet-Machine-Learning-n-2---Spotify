@@ -14,26 +14,43 @@ BLANC = "#F5F5F5"
 GRIS = "#B3B3B3"
 COULEURS_GENRES = ["#1DB954", "#55D88A", "#169C49", "#9CE5B4", "#318F60", "#78BFA0"]
 
-st.set_page_config(page_title="Exploration des données", page_icon="📊", layout="wide")
 
-st.markdown(
-    """
+# =========================================================
+# CSS Personnalisé (Thème Spotify DA)
+# =========================================================
+# --- BLOC DA SPOTIFY À METTRE AU DÉBUT DE CHAQUE PAGE ---
+LOGO_ICON = "https://upload.wikimedia.org/wikipedia/commons/1/19/Spotify_logo_without_text.svg"
+LOGO_FULL = "https://upload.wikimedia.org/wikipedia/commons/2/26/Spotify_logo_with_text.svg"
+
+# Logo dans l'onglet du navigateur
+st.set_page_config(page_title=" Exploration des données", page_icon=LOGO_ICON, layout="wide")
+
+# Logo dans la barre latérale
+st.logo(LOGO_FULL)
+
+# Thème CSS Noir/Vert pour la page
+st.markdown("""
     <style>
-    .stApp { background-color: #121212; color: #F5F5F5; }
-    [data-testid="stSidebar"] { background-color: #181818; }
-    [data-testid="stMetric"] {
-        background: #1C1C1C;
-        border: 1px solid #303030;
-        border-radius: 10px;
-        padding: 15px 18px;
+    .stApp { background-color: #121212; color: #FFFFFF; }
+    [data-testid="stSidebar"] { background-color: #000000; }
+    h1, h2, h3 { color: #1DB954 !important; font-weight: 900 !important; letter-spacing: -1px; }
+    div[data-testid="stMetricValue"] { color: #1DB954; }
+    .stProgress > div > div > div > div { background-color: #1DB954; }
+    [data-testid="stHeader"] {
+        display: none;
     }
-    h1, h2, h3 { letter-spacing: -0.02em; }
-    h1 { color: #F5F5F5; }
-    hr { border-color: #303030; }
     </style>
-    """,
-    unsafe_allow_html=True,
-)
+""", unsafe_allow_html=True)
+
+# Titre avec le logo Spotify à côté
+st.markdown(f"""
+<div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
+    <img src="{LOGO_ICON}" width="50">
+    <h1 style="margin: 0; font-size: 40px;"> Analyse exploratoire des données</h1>
+</div>
+""", unsafe_allow_html=True)
+# ---------------------------------------------------------
+
 
 
 def style_graphique(fig, axes, grille=True):
@@ -65,7 +82,6 @@ def etiquettes_barres(ax, orientation="v", format_n="%.0f"):
 
 
 # Chargement des données et filtre
-st.title("Analyse exploratoire des données")
 st.caption("Spotify · Exploration des caractéristiques musicales")
 
 df_brut = load_data()
