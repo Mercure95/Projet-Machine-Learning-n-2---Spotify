@@ -3,8 +3,6 @@
 # =========================================================
 import sys
 import os
-
-# Permet à Python de trouver les fichiers config.py et data.py à la racine du projet
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 import streamlit as st
@@ -18,50 +16,46 @@ from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error
 
-# Import des configurations communes
 from config import RANDOM_STATE, TEST_SIZE, TARGET_REG, FEATURES_REG
 from data import load_data, clean_data
 
 st.set_page_config(page_title="Régression - Énergie", page_icon="📈", layout="wide")
-st.title("📈 Prédire l'énergie d'un morceau")
+st.title("📈 Prédire l'énergie d'un morceau : Démarche et Modélisation")
 
-# =========================================================
-# 1. Démarche et Informations sur le modèle
-# =========================================================
-st.header("1. Notre démarche")
-st.markdown(f"""
-Nous cherchons à prédire la variable cible **`{TARGET_REG}`** (continue entre 0 et 1) à partir des caractéristiques audio des morceaux.
-* **Algorithme utilisé** : Régression Linéaire (Simple puis Multiple).
-* **Variables explicatives (X)** : `{', '.join(FEATURES_REG)}`.
-* **Préparation** : Les données ont été nettoyées, et séparées en un jeu d'entraînement (Train, {int((1-TEST_SIZE)*100)}%) et un jeu de test (Test, {int(TEST_SIZE*100)}%) avec une graine aléatoire fixée à {RANDOM_STATE} pour assurer la reproductibilité.
+st.markdown("""
+Cette page détaille la construction de notre modèle de **Régression Linéaire**. 
+Notre objectif est de prédire la variable cible **`energy`** (l'intensité du morceau, de 0 à 1) à partir de ses autres caractéristiques audio, sans jamais tricher en regardant la réponse.
 """)
 
 # =========================================================
-# Chargement des données et des modèles en cache
+# Chargement des données et préparation en cache
 # =========================================================
 @st.cache_data
-def get_data_and_metrics():
-    # Chargement et préparation des données
+def prepare_all_models():
     df = load_data()
     df_clean = clean_data(df)
     
-    X = df_clean[FEATURES_REG]
-    y = df_clean[TARGET_REG]
+    # --- Filtre A : Loudness ---
+    df_loud = df_clean[(df_clean['duration_min'] >= 1.0) & (df_clean['duration_min'] <= 10.0) & (df_clean['loudness'] >= -20.0)]
+    X_train_l, X_test_l, y_train_l, y_test_l = train_test_split(df_loud[['loudness']], df_loud[TARGET_REG], test_size=TEST_SIZE, random_state=RANDOM_STATE)
+    model_loud = LinearRegression().fit(X_train_l, y_train_l)
     
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=TEST_SIZE, random_state=RANDOM_STATE)
+    # --- Filtre B : Acousticness ---
+    df_aco = df_clean[(df_clean['duration_min'] >= 1.0) & (df_clean['duration_min'] <= 10.0) & (df_clean['speechiness'] < 0.5)]
+    X_train_a, X_test_a, y_train_a, y_test_a = train_test_split(df_aco[['acousticness']], df_aco[TARGET_REG], test_size=TEST_SIZE, random_state=RANDOM_STATE)
+    model_aco = LinearRegression().fit(X_train_a, y_train_a)
     
-    # Régression Simple (Loudness uniquement)
-    X_train_s = X_train[['loudness']]
-    X_test_s = X_test[['loudness']]
-    model_simple = LinearRegression()
-    model_simple.fit(X_train_s, y_train)
+    # --- Filtre Global : Multiple ---
+    df_multi = df_clean[(df_clean['duration_min'] >= 1.0) & (df_clean['duration_min'] <= 10.0) & (df_clean['loudness'] >= -20.0) & (df_clean['tempo'] > 0) & (df_clean['speechiness'] < 0.5)]
+    X_train_m, X_test_m, y_train_m, y_test_m = train_test_split(df_multi[FEATURES_REG], df_multi[TARGET_REG], test_size=TEST_SIZE, random_state=RANDOM_STATE)
     
-    return X_train, X_test, y_train, y_test, model_simple
+    return df_clean, df_loud, df_aco, df_multi, model_loud, X_test_l, y_test_l, model_aco, X_test_a, y_test_a, X_test_m, y_test_m
 
-# On exécute la fonction
-X_train, X_test, y_train, y_test, model_simple = get_data_and_metrics()
+(df_initial, df_loud, df_aco, df_multi, 
+ model_loud, X_test_l, y_test_l, 
+ model_aco, X_test_a, y_test_a, 
+ X_test_m, y_test_m) = prepare_all_models()
 
-# Chargement du modèle multiple final sauvegardé depuis le notebook
 @st.cache_resource
 def load_final_model():
     return joblib.load('models/regression.joblib')
@@ -69,102 +63,107 @@ def load_final_model():
 try:
     model_multi = load_final_model()
 except FileNotFoundError:
-    st.error("Le modèle n'a pas été trouvé. Exécutez le notebook 02_regression.ipynb pour générer 'models/regression.joblib'.")
+    st.error("Modèle introuvable. Exécutez le notebook 02_regression.ipynb pour le générer.")
     st.stop()
 
 # =========================================================
-# 2. Performances et Comparaison
+# Section 1 : Préparation et Filtrages
 # =========================================================
-st.header("2. Évaluation des performances")
-
-# Fonction locale pour calculer les métriques
-def calc_metrics(model, X_tr, y_tr, X_te, y_te):
-    pred_tr = model.predict(X_tr)
-    pred_te = model.predict(X_te)
-    return {
-        'R² Train': round(r2_score(y_tr, pred_tr), 3),
-        'R² Test': round(r2_score(y_te, pred_te), 3),
-        'MAE Train': round(mean_absolute_error(y_tr, pred_tr), 3),
-        'MAE Test': round(mean_absolute_error(y_te, pred_te), 3),
-        'RMSE Test': round(np.sqrt(mean_squared_error(y_te, pred_te)), 3)
-    }
-
-# Calcul des métriques pour les deux modèles
-metrics_simple = calc_metrics(model_simple, X_train[['loudness']], y_train, X_test[['loudness']], y_test)
-metrics_multi = calc_metrics(model_multi, X_train, y_train, X_test, y_test)
-
-# Affichage du tableau comparatif
-df_metrics = pd.DataFrame([metrics_simple, metrics_multi], index=["Régression Simple (Loudness)", "Régression Multiple"])
-st.dataframe(df_metrics, use_container_width=True)
-
+st.header("1. La préparation des données (Filtrages ciblés)")
 st.markdown("""
-**Interprétation :**
-* Les scores sur le jeu Train et le jeu Test sont très proches : notre modèle ne fait pas d'overfitting.
-* La régression multiple est nettement supérieure à la régression simple, car le coefficient de détermination (R²) augmente et l'erreur moyenne (MAE) diminue.
+La régression linéaire trace une ligne au milieu d'un nuage de points. Elle est donc très sensible aux valeurs extrêmes (les *outliers*). Nous avons testé deux variables individuellement avant de les combiner, en appliquant un filtrage spécifique à chaque fois.
 """)
 
-# =========================================================
-# 3. Interprétation Visuelle (Graphiques)
-# =========================================================
-st.header("3. Analyse visuelle du Modèle Multiple")
+col1, col2 = st.columns(2)
+with col1:
+    st.info(f"**Filtre A : Centré sur le Volume (Loudness)**\n\nNous avons retiré les morceaux avec un volume inférieur à -20 dB (quasi-silences) et les durées aberrantes. \n\n*Volume conservé : {len(df_loud)} morceaux.*")
+with col2:
+    st.info(f"**Filtre B : Centré sur l'Acoustique (Acousticness)**\n\nNous avons retiré les morceaux très parlés (`speechiness > 0.5`), car les podcasts perturbent la corrélation musicale. \n\n*Volume conservé : {len(df_aco)} morceaux.*")
 
-tab1, tab2 = st.tabs(["Valeurs Réelles vs Prédites", "Coefficients du modèle"])
+st.markdown(f"**Filtre Global pour le modèle final** : Pour le modèle multiple, nous avons combiné toutes ces règles. Notre jeu de données final, parfaitement propre, contient **{len(df_multi)}** morceaux sur les {len(df_initial)} initiaux.")
+
+st.divider()
+
+# =========================================================
+# Section 2 : Comparaison des Modèles
+# =========================================================
+st.header("2. Analyse et Comparaison des Modèles")
+
+def calc_test_metrics(model, X_te, y_te):
+    pred_te = model.predict(X_te)
+    return {
+        'R² (Explication de la variance)': f"{r2_score(y_te, pred_te):.3f}",
+        'MAE (Erreur Moyenne)': f"{mean_absolute_error(y_te, pred_te):.3f}",
+        'RMSE (Erreur Quadratique)': f"{np.sqrt(mean_squared_error(y_te, pred_te)):.3f}"
+    }
+
+df_metrics = pd.DataFrame([
+    calc_test_metrics(model_loud, X_test_l, y_test_l),
+    calc_test_metrics(model_aco, X_test_a, y_test_a),
+    calc_test_metrics(model_multi, X_test_m, y_test_m)
+], index=["1. Simple (Loudness)", "2. Simple (Acousticness)", "3. Multiple (Toutes variables)"])
+
+st.table(df_metrics)
+
+st.markdown("""
+**Que nous apprennent ces résultats ?**
+* Le **Modèle 1** montre que le volume seul explique déjà une grande partie de l'énergie (R² élevé).
+* Le **Modèle 2** confirme que l'acoustique est un bon indicateur, mais moins précis que le volume.
+* Le **Modèle 3 (Multiple)** combine les forces de toutes les caractéristiques. Il atteint le meilleur score R² et minimise l'erreur absolue (MAE).
+""")
+
+tab1, tab2 = st.tabs(["📊 Nuage de points (Modèle Multiple)", "⚖️ Poids des variables (Coefficients)"])
 
 with tab1:
-    y_pred_multi = model_multi.predict(X_test)
-    fig1, ax1 = plt.subplots(figsize=(8, 5))
-    sns.scatterplot(x=y_test, y=y_pred_multi, alpha=0.3, color='royalblue', ax=ax1)
+    y_pred_multi = model_multi.predict(X_test_m)
+    fig1, ax1 = plt.subplots(figsize=(8, 4))
+    sns.scatterplot(x=y_test_m, y=y_pred_multi, alpha=0.3, color='royalblue', ax=ax1)
     ax1.plot([0, 1], [0, 1], color='red', linestyle='--', linewidth=2)
-    ax1.set_title('Régression Multiple : Énergie Réelle vs Prédite')
-    ax1.set_xlabel('Énergie Réelle (Test)')
-    ax1.set_ylabel('Énergie Prédite (Test)')
-    ax1.set_xlim(0, 1)
-    ax1.set_ylim(0, 1)
+    ax1.set_title("Modèle Multiple : Énergie Réelle vs Énergie Prédite")
+    ax1.set_xlabel("Vraie Énergie (Jeu de test)")
+    ax1.set_ylabel("Énergie devinée par le Modèle")
     st.pyplot(fig1)
 
 with tab2:
-    coefficients = pd.DataFrame(
-        list(zip(FEATURES_REG, model_multi.coef_)), 
-        columns=['Variable', 'Coefficient']
-    )
+    coefficients = pd.DataFrame(list(zip(FEATURES_REG, model_multi.coef_)), columns=['Variable', 'Coefficient'])
     coefficients['Impact Absolu'] = coefficients['Coefficient'].abs()
     coefficients = coefficients.sort_values(by='Impact Absolu', ascending=False)
     
-    fig2, ax2 = plt.subplots(figsize=(10, 5))
-    sns.barplot(data=coefficients, x='Coefficient', y='Variable', palette='coolwarm', ax=ax2)
-    ax2.set_title("Poids des variables dans la prédiction de l'énergie")
+    fig2, ax2 = plt.subplots(figsize=(10, 4))
+    sns.barplot(data=coefficients, x='Coefficient', y='Variable', palette='vlag', ax=ax2)
+    ax2.set_title("Impact de chaque variable sur le calcul de l'énergie")
     st.pyplot(fig2)
 
 st.divider()
 
 # =========================================================
-# 4. Formulaire interactif
+# Section 3 : Simulateur interactif
 # =========================================================
-st.header("4. Testez le modèle vous-même 🎛️")
-st.markdown("Ajustez les curseurs pour voir comment le modèle prédit l'énergie d'un morceau en temps réel.")
+st.header("3. Testez le modèle Multiple : Le Simulateur 🎛️")
+st.markdown("Modifiez les caractéristiques ci-dessous et observez comment l'équation mathématique réajuste l'énergie en direct.")
 
 with st.form("prediction_form"):
-    col1, col2, col3 = st.columns(3)
+    col_s1, col_s2, col_s3 = st.columns(3)
     
-    with col1:
-        loudness = st.slider("Loudness (dB)", min_value=-60.0, max_value=5.0, value=-5.0, step=0.5)
-        acousticness = st.slider("Acousticness", 0.0, 1.0, 0.2, step=0.05)
-        danceability = st.slider("Danceability", 0.0, 1.0, 0.6, step=0.05)
-        tempo = st.number_input("Tempo (BPM)", min_value=0.0, max_value=250.0, value=120.0)
+    with col_s1:
+        loudness = st.slider("Loudness (Volume en dB)", -30.0, 5.0, -5.0, 0.5)
+        acousticness = st.slider("Acousticness", 0.0, 1.0, 0.2, 0.05)
+        danceability = st.slider("Danceability", 0.0, 1.0, 0.6, 0.05)
+        tempo = st.number_input("Tempo (BPM)", 0.0, 250.0, 120.0)
         
-    with col2:
-        valence = st.slider("Valence", 0.0, 1.0, 0.5, step=0.05)
-        instrumentalness = st.slider("Instrumentalness", 0.0, 1.0, 0.0, step=0.05)
-        liveness = st.slider("Liveness", 0.0, 1.0, 0.15, step=0.05)
-        speechiness = st.slider("Speechiness", 0.0, 1.0, 0.05, step=0.05)
+    with col_s2:
+        valence = st.slider("Valence (Positivité)", 0.0, 1.0, 0.5, 0.05)
+        instrumentalness = st.slider("Instrumentalness", 0.0, 1.0, 0.0, 0.05)
+        liveness = st.slider("Liveness (Concert)", 0.0, 1.0, 0.15, 0.05)
+        speechiness = st.slider("Speechiness (Paroles)", 0.0, 1.0, 0.05, 0.05)
         
-    with col3:
-        key = st.selectbox("Key (Tonalité)", options=list(range(12)))
+    with col_s3:
+        key = st.selectbox("Key (Tonalité 0-11)", options=list(range(12)))
         mode = st.selectbox("Mode", options=[0, 1], format_func=lambda x: "Majeur (1)" if x == 1 else "Mineur (0)")
-        duration_min = st.number_input("Durée (minutes)", min_value=0.5, max_value=15.0, value=3.5, step=0.1)
-        release_year = st.number_input("Année de sortie", min_value=1950, max_value=2024, value=2020, step=1)
+        duration_min = st.number_input("Durée (minutes)", 0.5, 15.0, 3.5, 0.1)
+        release_year = st.number_input("Année de sortie", 1950, 2024, 2020, 1)
 
-    submit_button = st.form_submit_button(label="🔮 Calculer l'énergie")
+    submit_button = st.form_submit_button(label="🔮 Demander au modèle de prédire l'énergie")
 
 if submit_button:
     input_data = {
@@ -177,7 +176,8 @@ if submit_button:
     }
     X_user = pd.DataFrame(input_data)[FEATURES_REG]
     prediction = model_multi.predict(X_user)[0]
+    
     prediction_bounded = np.clip(prediction, 0, 1)
     
-    st.success(f"### Énergie prédite : {prediction_bounded:.2f} / 1.00")
+    st.success(f"### ⚡ Énergie calculée par l'algorithme : {prediction_bounded:.2f} / 1.00")
     st.progress(float(prediction_bounded))
