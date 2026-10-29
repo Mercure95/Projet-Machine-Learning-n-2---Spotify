@@ -53,26 +53,28 @@ st.markdown("""
 Cette page présente notre modèle de **Classification** conçu pour prédire la variable cible **`playlist_genre`**.
 Les genres possibles sont : `edm`, `latin`, `pop`, `r&b`, `rap`, et `rock`.
 
-**Notre démarche s'articule autour du modèle Random Forest, choisi pour ses performances supérieures :**
-1. 🧮 **Séparation Stratifiée (Train/Test)** pour garantir que chaque genre soit équitablement représenté.
-2. 📊 **Évaluation Globale** via des métriques spécifiques à la classification (Accuracy, F1-Score).
-3. 📉 **Analyse Fine (Matrice de Confusion)** pour comprendre quels genres l'IA confond.
+**Pour concevoir un modèle robuste, notre démarche suit 3 étapes :**
+1. 🧮 **Préparation et Split Stratifié** pour garantir que chaque genre soit équitablement représenté.
+2. 📊 **Comparaison d'algorithmes** (Régression Logistique, KNN, Random Forest) pour retenir le plus performant.
+3. 📉 **Analyse Fine (Matrice de Confusion)** pour comprendre quels genres l'IA confond naturellement.
 """)
 st.divider()
 
 # =========================================================
-# Chargement des données et préparation en cache
+# Chargement des données et du modèle en cache
 # =========================================================
 @st.cache_data(show_spinner=False)
 def prepare_classification_data():
     df = load_data()
     df_clean = clean_data(df)
     
+    # Ajout de track_popularity aux features de base
     features_finales = FEATURES_CLF + ['track_popularity']
     
     X = df_clean[features_finales]
     y = df_clean[TARGET_CLF]
     
+    # Split stratifié essentiel pour la classification multi-classes
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=TEST_SIZE, random_state=RANDOM_STATE, stratify=y
     )
@@ -98,10 +100,31 @@ except FileNotFoundError:
 y_pred_c = model_clf.predict(X_test_c)
 
 # =========================================================
-# 1. Performances Globales
+# 1. Comparaison des modèles testés
 # =========================================================
-st.header("1. 🏆 Performances du modèle Random Forest")
-st.markdown("Ce modèle d'assemblage d'arbres décisionnels a surpassé la régression logistique et le KNN sur notre jeu de données.")
+st.header("1. 🧹 Démarche et Comparaison des modèles")
+
+st.markdown("""
+Avant de choisir notre algorithme final, nous avons défini un **score plancher (Modèle Naïf)** : un algorithme qui répondrait totalement au hasard ou qui prédirait toujours la classe majoritaire obtiendrait environ **16.67 %** à **18 %** de réussite. 
+Nous avons ensuite entraîné et comparé 3 algorithmes de Machine Learning :
+""")
+
+# Tableau comparatif statique (issu des résultats du notebook)
+df_comparatif = pd.DataFrame({
+    "Modèle": ["Modèle Naïf (Hasard/Majorité)", "Régression Logistique", "K-Nearest Neighbors (k=21)", "Random Forest"],
+    "Accuracy": ["~ 18.5 %", "~ 50.7 %", "~ 53.6 %", "~ 60.2 %"],
+    "F1-Score (Macro)": ["N/A", "~ 49.6 %", "N/A", "~ 59.3 %"]
+})
+st.dataframe(df_comparatif, use_container_width=True, hide_index=True)
+
+st.success("🏁 **Choix final :** Le **Random Forest** a été retenu. En combinant 100 arbres de décision, il capture bien mieux les relations complexes entre les variables audio que les modèles linéaires.")
+st.divider()
+
+
+# =========================================================
+# 2. Performances du Random Forest
+# =========================================================
+st.header("2. 🏆 Performances du modèle Random Forest")
 
 col_c1, col_c2, col_c3, col_c4 = st.columns(4)
 col_c1.metric("Accuracy Globale", f"{accuracy_score(y_test_c, y_pred_c):.3f}")
@@ -120,9 +143,9 @@ with st.expander("🧐 Le Plafond de verre : Pourquoi stagnons-nous autour de 60
 st.divider()
 
 # =========================================================
-# 2. Analyse Approfondie : Matrice de Confusion
+# 3. Analyse Approfondie : Matrice de Confusion
 # =========================================================
-st.header("2. 📉 Où le modèle se trompe-t-il ? (Matrice de confusion)")
+st.header("3. 📉 Où le modèle se trompe-t-il ? (Matrice de confusion)")
 st.markdown("La matrice de confusion détaille précisément comment le modèle classe chaque genre. La diagonale représente les bonnes prédictions.")
 
 fig_cm, ax_cm = plt.subplots(figsize=(8, 6))
@@ -134,15 +157,15 @@ st.pyplot(fig_cm)
 
 st.markdown("""
 **Interprétation Musicale :**
-* 🎸 **Le Rock et l'EDM** sont les genres les plus faciles à reconnaître pour l'algorithme. Leurs signatures acoustiques (tempo rapide et régulier pour l'EDM, forte instrumentalité et énergie pour le Rock) sont très claires.
-* 🎤 **La Pop** est la classe la plus souvent confondue par notre modèle. Cela est totalement cohérent d'un point de vue musical : la Pop est un genre "carrefour" qui se nourrit des codes de l'EDM, du R&B ou du Rap pour toucher un large public.
+* 🎸 **Le Rock et l'EDM** sont les genres les plus faciles à reconnaître pour l'algorithme. Leurs signatures acoustiques (tempo rapide et régulier pour l'EDM, forte instrumentalité et énergie pour le Rock) sont très claires et se détachent du lot.
+* 🎤 **La Pop** est la classe la plus souvent confondue par notre modèle. Cela est totalement cohérent d'un point de vue musical : la Pop est un genre "carrefour" qui se nourrit des codes de l'EDM, du R&B ou du Rap pour toucher un large public, ce qui piège l'algorithme.
 """)
 st.divider()
 
 # =========================================================
-# 3. Simulateur Interactif & Analyseur de Catalogue
+# 4. Simulateur Interactif & Analyseur de Catalogue
 # =========================================================
-st.header("3. 🎛️ Testez le Modèle : L'Analyseur de Genre")
+st.header("4. 🎛️ Testez le Modèle : L'Analyseur de Genre")
 st.markdown("Jouez avec les caractéristiques d'un morceau fictif, ou choisissez un vrai titre du catalogue pour voir comment l'algorithme répartit ses probabilités entre les 6 genres.")
 
 tab_manual, tab_catalog = st.tabs(["🎚️ Créer un morceau manuellement", "🔍 Analyser un titre du catalogue"])
@@ -185,6 +208,8 @@ if submit_manual or submit_auto:
     with st.spinner("Analyse des vecteurs audio en cours..."):
         time.sleep(0.8) # Effet visuel
         
+        features_finales = FEATURES_CLF + ['track_popularity']
+        
         if submit_auto:
             # Récupération de la première occurrence du morceau sélectionné
             morceau_data = df_clf[df_clf['track_name'] == titre_choisi].iloc[0]
@@ -192,7 +217,6 @@ if submit_manual or submit_auto:
             st.info(f"**Vrai genre attribué par Spotify :** {genre_reel}")
             
             # Préparation du dataframe d'entrée avec les bonnes colonnes
-            features_finales = FEATURES_CLF + ['track_popularity']
             user_data = pd.DataFrame([morceau_data[features_finales]])
         else:
             # Construction du dataframe d'après le formulaire manuel
@@ -204,7 +228,6 @@ if submit_manual or submit_auto:
                 'duration_min': [duration_min_m], 'release_year': [release_year_m],
                 'track_popularity': [popularity_m]
             }
-            features_finales = FEATURES_CLF + ['track_popularity']
             user_data = pd.DataFrame(user_input)[features_finales]
 
         # Utilisation du modèle entraîné par l'équipe
