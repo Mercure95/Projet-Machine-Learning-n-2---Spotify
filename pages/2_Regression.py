@@ -50,18 +50,18 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-st.title("🎧 Prédire l'énergie : Démarche et Modélisation")
+st.title("Prédire l'énergie : Démarche et Modélisation")
 
-st.info("🎯 **Notre défi :** Peut-on deviner mathématiquement l'énergie d'un morceau de musique sans jamais l'écouter, uniquement en analysant ses caractéristiques techniques brutes ?")
+st.info("**Notre défi :** Peut-on deviner mathématiquement l'énergie d'un morceau de musique sans jamais l'écouter, uniquement en analysant ses caractéristiques techniques brutes ?")
 
 st.markdown("""
 Cette page détaille la construction de notre algorithme de **Régression Linéaire** pour répondre à cette question. 
 Notre objectif précis est de prédire la variable cible **`energy`** (l'intensité globale d'une piste, notée de 0 à 1).
 
 **Pour concevoir un modèle robuste, notre démarche suit 3 étapes :**
-1. 🧹 **Un nettoyage minutieux** pour écarter les données absurdes.
-2. 🔬 **Des modèles simples** (à une variable) pour valider nos hypothèses de départ.
-3. 🚀 **Un modèle multiple** (toutes les variables) pour maximiser la précision.
+1. **Un nettoyage minutieux** pour écarter les données absurdes.
+2. **Des modèles simples** (à une variable) pour valider nos hypothèses de départ.
+3. **Un modèle multiple** (toutes les variables) pour maximiser la précision.
 """)
 st.divider()
 
@@ -89,7 +89,7 @@ def prepare_all_models():
     
     return df_clean, df_loud, df_aco, df_multi, model_loud, X_train_l, X_test_l, y_train_l, y_test_l, model_aco, X_train_a, X_test_a, y_train_a, y_test_a, X_train_m, X_test_m, y_train_m, y_test_m
 
-with st.spinner("⏳ Chargement des données musicales et entraînement des algorithmes..."):
+with st.spinner(" Chargement des données musicales et entraînement des algorithmes..."):
     (df_initial, df_loud, df_aco, df_multi, 
      model_loud, X_train_l, X_test_l, y_train_l, y_test_l, 
      model_aco, X_train_a, X_test_a, y_train_a, y_test_a, 
@@ -118,7 +118,7 @@ def plot_scatter_spotify(y_true, y_pred, title):
 # =========================================================
 # 1. Préparation, Filtrage et Train/Test Split
 # =========================================================
-st.header("1. 🧹 Préparation des données et Train/Test Split")
+st.header("1. Préparation des données et Train/Test Split")
 
 st.markdown("""
 La régression linéaire trace une droite au cœur d'un nuage de points. Elle est mathématiquement très vulnérable aux valeurs aberrantes (outliers). Avant d'entraîner nos modèles, nous appliquons un **pré-filtrage** spécifique selon la variable étudiée pour ne conserver que la "vraie" musique.
@@ -126,9 +126,9 @@ La régression linéaire trace une droite au cœur d'un nuage de points. Elle es
 
 # Visualisation impactante du nettoyage
 col_f1, col_f2, col_f3 = st.columns(3)
-col_f1.metric("🎵 Catalogue Initial", f"{len(df_initial):,}".replace(',', ' '))
-col_f2.metric("✂️ Filtres appliqués", "Durée, Volume, Paroles")
-col_f3.metric("✨ Catalogue Purifié", f"{len(df_multi):,}".replace(',', ' '), delta=f"- {len(df_initial)-len(df_multi)} anomalies", delta_color="normal")
+col_f1.metric("Catalogue Initial", f"{len(df_initial):,}".replace(',', ' '))
+col_f2.metric("Filtres appliqués", "Durée, Volume, Paroles")
+col_f3.metric("Catalogue Purifié", f"{len(df_multi):,}".replace(',', ' '), delta=f"- {len(df_initial)-len(df_multi)} anomalies", delta_color="normal")
 
 st.code("""
 # Code d'application du filtre global pour le modèle multiple
@@ -141,10 +141,10 @@ df_multi = df_clean[
 """, language="python")
 
 st.markdown("""
-### 🧠 La séparation Train / Test
+###  La séparation Train / Test
 Pour évaluer notre algorithme, nous devons le tester sur des données qu'il n'a jamais vues, comme un étudiant face à un examen inédit. En Machine Learning, c'est la fonction `train_test_split`.
-* 🏋️‍♂️ **Train (80%)** : Le modèle observe les caractéristiques audio et l'énergie réelle, puis calcule ses coefficients.
-* 🎓 **Test (20%)** : Le modèle découvre de nouveaux morceaux. On lui cache l'énergie, il doit la prédire, et on mesure son erreur.
+*  **Train (80%)** : Le modèle observe les caractéristiques audio et l'énergie réelle, puis calcule ses coefficients.
+*  **Test (20%)** : Le modèle découvre de nouveaux morceaux. On lui cache l'énergie, il doit la prédire, et on mesure son erreur.
 """)
 
 st.code("""
@@ -161,7 +161,7 @@ st.divider()
 # =========================================================
 # 2. Modèle Simple A (Loudness)
 # =========================================================
-st.header("2. 🔊 Modèle Simple A : Le Volume (`loudness`)")
+st.header("2. Modèle Simple A : Le Volume (`loudness`)")
 st.markdown("""
 Le `loudness` possède la plus forte corrélation positive avec l'énergie. Nous avons filtré les silences extrêmes (`loudness < -20 dB`).
 """)
@@ -186,7 +186,7 @@ st.divider()
 # =========================================================
 # 3. Modèle Simple B (Acousticness)
 # =========================================================
-st.header("3. 🎸 Modèle Simple B : L'Acoustique (`acousticness`)")
+st.header("3. Modèle Simple B : L'Acoustique (`acousticness`)")
 st.markdown("""
 L'`acousticness` possède la plus forte corrélation négative (un morceau très acoustique manque d'énergie). Nous avons exclu les podcasts (`speechiness > 0.5`) pour ne pas fausser l'analyse.
 """)
@@ -211,7 +211,7 @@ st.divider()
 # =========================================================
 # 4. Modèle Multiple
 # =========================================================
-st.header("4. 🚀 Modèle Multiple : La puissance de toutes les variables")
+st.header("4. Modèle Multiple : La puissance de toutes les variables")
 st.markdown("""
 Nous utilisons ici toutes nos caractéristiques audio (`FEATURES_REG`) sur notre catalogue purifié grâce au filtre global. L'algorithme calcule un hyperplan multidimensionnel qui pondère chaque variable.
 """)
@@ -228,8 +228,8 @@ poids_variables = model_multi.coef_
 col_m1, col_m2 = st.columns([1, 2])
 y_pred_m = model_multi.predict(X_test_m)
 with col_m1:
-    st.metric("⭐ Précision (R² Test)", f"{r2_score(y_test_m, y_pred_m):.3f}")
-    st.metric("⭐ Erreur (MAE Test)", f"{mean_absolute_error(y_test_m, y_pred_m):.3f}")
+    st.metric(" Précision (R² Test)", f"{r2_score(y_test_m, y_pred_m):.3f}")
+    st.metric(" Erreur (MAE Test)", f"{mean_absolute_error(y_test_m, y_pred_m):.3f}")
     st.markdown("**Interprétation :** Les erreurs s'annulent. En croisant le volume avec le tempo ou l'instrumentalité, le modèle gagne drastiquement en précision. Le nuage de points est nettement plus resserré sur la ligne de prédiction parfaite.")
 with col_m2:
     st.pyplot(plot_scatter_spotify(y_test_m, y_pred_m, "Modèle Multiple"))
@@ -250,7 +250,7 @@ st.divider()
 # =========================================================
 # 5. Comparaison Globale
 # =========================================================
-st.header("5. 🏆 Comparaison et Bilan")
+st.header("5.  Comparaison et Bilan")
 st.markdown("Récapitulatif des erreurs sur le jeu de données de Test (données inconnues). Les meilleurs scores sont surlignés en vert.")
 
 def calc_metrics_dict(model, X_te, y_te):
@@ -275,38 +275,38 @@ styled_df = df_comparatif.style\
 
 st.dataframe(styled_df, use_container_width=True)
 
-st.success("🏁 **Conclusion :** Le modèle multiple est le vainqueur incontesté. Avec un R² très supérieur et une erreur moyenne très faible, il prouve qu'un morceau de musique ne peut pas être résumé à un seul de ses aspects.")
+st.success("**Conclusion :** Le modèle multiple est le vainqueur incontesté. Avec un R² très supérieur et une erreur moyenne très faible, il prouve qu'un morceau de musique ne peut pas être résumé à un seul de ses aspects.")
 
 st.divider()
 
 # =========================================================
 # 6. Simulateur interactif
 # =========================================================
-st.header("6. 🎛️ Testez le Modèle Multiple : Le Studio Virtuel")
+st.header("6. Testez le Modèle Multiple : Le Studio Virtuel")
 st.markdown("Utilisez les curseurs pour définir les caractéristiques d'un morceau fictif. Le modèle exécutera son équation en temps réel pour en deviner l'énergie.")
 
 with st.form("prediction_form", border=True):
     col_s1, col_s2, col_s3 = st.columns(3)
     
     with col_s1:
-        loudness = st.slider("🔊 Loudness (Volume en dB)", -30.0, 5.0, -5.0, 0.5)
-        acousticness = st.slider("🎸 Acousticness", 0.0, 1.0, 0.2, 0.05)
-        danceability = st.slider("🕺 Danceability", 0.0, 1.0, 0.6, 0.05)
-        tempo = st.number_input("⏱️ Tempo (BPM)", 0.0, 250.0, 120.0)
+        loudness = st.slider("Loudness (Volume en dB)", -30.0, 5.0, -5.0, 0.5)
+        acousticness = st.slider("Acousticness", 0.0, 1.0, 0.2, 0.05)
+        danceability = st.slider(" Danceability", 0.0, 1.0, 0.6, 0.05)
+        tempo = st.number_input("Tempo (BPM)", 0.0, 250.0, 120.0)
         
     with col_s2:
-        valence = st.slider("😊 Valence (Positivité)", 0.0, 1.0, 0.5, 0.05)
-        instrumentalness = st.slider("🎻 Instrumentalness", 0.0, 1.0, 0.0, 0.05)
-        liveness = st.slider("🎤 Liveness (Concert)", 0.0, 1.0, 0.15, 0.05)
-        speechiness = st.slider("🗣️ Speechiness (Paroles)", 0.0, 1.0, 0.05, 0.05)
+        valence = st.slider("Valence (Positivité)", 0.0, 1.0, 0.5, 0.05)
+        instrumentalness = st.slider("Instrumentalness", 0.0, 1.0, 0.0, 0.05)
+        liveness = st.slider("Liveness (Concert)", 0.0, 1.0, 0.15, 0.05)
+        speechiness = st.slider("Speechiness (Paroles)", 0.0, 1.0, 0.05, 0.05)
         
     with col_s3:
-        key = st.selectbox("🎹 Key (Tonalité 0-11)", options=list(range(12)))
-        mode = st.selectbox("🎼 Mode", options=[0, 1], format_func=lambda x: "Majeur (1)" if x == 1 else "Mineur (0)")
-        duration_min = st.number_input("⏳ Durée (minutes)", 0.5, 15.0, 3.5, 0.1)
-        release_year = st.number_input("📅 Année de sortie", 1950, 2024, 2020, 1)
+        key = st.selectbox("Key (Tonalité 0-11)", options=list(range(12)))
+        mode = st.selectbox("Mode", options=[0, 1], format_func=lambda x: "Majeur (1)" if x == 1 else "Mineur (0)")
+        duration_min = st.number_input("Durée (minutes)", 0.5, 15.0, 3.5, 0.1)
+        release_year = st.number_input("Année de sortie", 1950, 2024, 2020, 1)
 
-    submit_button = st.form_submit_button(label="⚡ DEMANDER AU MODÈLE DE PRÉDIRE L'ÉNERGIE", use_container_width=True)
+    submit_button = st.form_submit_button(label=" DEMANDER AU MODÈLE DE PRÉDIRE L'ÉNERGIE", use_container_width=True)
 
 if submit_button:
     with st.spinner("Analyse des fréquences et calcul de l'hyperplan..."):
@@ -329,5 +329,5 @@ if submit_button:
         st.balloons()
         
         # Affichage géant HTML
-        st.markdown(f"<div class='big-font'>⚡ ÉNERGIE CALCULÉE : {prediction_bounded:.2f} / 1.00</div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='big-font'> ÉNERGIE CALCULÉE : {prediction_bounded:.2f} / 1.00</div>", unsafe_allow_html=True)
         st.progress(float(prediction_bounded))
