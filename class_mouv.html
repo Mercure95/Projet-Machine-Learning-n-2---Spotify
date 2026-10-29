@@ -1,0 +1,335 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Trois classifieurs en mouvement</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,650&family=JetBrains+Mono:wght@400;500&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap">
+<style>
+/* une colonne de 1040px : prose à 66 caractères, puis un panneau labo pleine largeur par modèle */
+:root{--bg:#f5f6f8;--surface:#ffffff;--surface-2:#eceff3;--fg:#14171c;--fg-2:#495061;--muted:#7a8193;--line:#dce0e7;--line-strong:#c3c9d3;--ink:#14171c;--c0:#2a78d6;--c1:#e2602c;--f-display:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;--f-body:"Source Serif 4",Georgia,"Times New Roman",serif;--f-mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#101216;--surface:#171a1f;--surface-2:#20242b;--fg:#eceef2;--fg-2:#b3b9c5;--muted:#868c99;--line:#2a2f37;--line-strong:#3b414c;--ink:#eceef2;--c0:#4b93ea;--c1:#e8703b;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#101216;--surface:#171a1f;--surface-2:#20242b;--fg:#eceef2;--fg-2:#b3b9c5;--muted:#868c99;--line:#2a2f37;--line-strong:#3b414c;--ink:#eceef2;--c0:#4b93ea;--c1:#e8703b;color-scheme:dark}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--fg);font:400 17px/1.65 var(--f-body);-webkit-font-smoothing:antialiased}
+.wrap{max-width:1040px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:40px 64px}
+h1,h2{font-family:var(--f-display);text-wrap:balance;margin:0}
+h1{font-size:clamp(34px,6vw,58px);line-height:1.02;font-weight:650;letter-spacing:-.02em}
+h2{font-size:clamp(26px,3.6vw,36px);line-height:1.1;font-weight:650;letter-spacing:-.015em}
+header{display:grid;gap:18px;padding-bottom:28px;border-bottom:1px solid var(--line)}
+.eyebrow{font:500 12px/1.2 var(--f-display);text-transform:uppercase;letter-spacing:.12em;color:var(--muted)}
+.lede{font-size:19px;color:var(--fg-2);max-width:62ch;margin:0}
+.meta{display:flex;flex-wrap:wrap;gap:10px 22px;font:400 14px var(--f-display);color:var(--fg-2);align-items:center}
+.sw{display:inline-flex;align-items:center;gap:8px}
+.sw i{width:11px;height:11px;border-radius:50%;display:inline-block}
+nav{display:flex;flex-wrap:wrap;gap:8px}
+nav a{font:500 14px var(--f-display);color:var(--fg);text-decoration:none;border:1px solid var(--line-strong);border-radius:999px;padding:6px 14px}
+nav a:hover{background:var(--surface-2)}
+section{display:grid;gap:18px;padding-block:52px 8px;scroll-margin-top:12px}
+.kicker{font:400 14px var(--f-mono);color:var(--muted);margin:-8px 0 0}
+.prose{max-width:66ch;display:grid;gap:12px}
+.prose p{margin:0}
+code{font-family:var(--f-mono);font-size:.84em;background:var(--surface-2);padding:1px 5px;border-radius:4px}
+.lab{display:grid;grid-template-columns:minmax(0,340px) minmax(0,1fr);gap:28px;align-items:start;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:20px}
+.plot{margin:0;display:grid;gap:8px;min-width:0}
+.plot figcaption,.hint{font:400 13px/1.45 var(--f-display);color:var(--muted)}
+canvas.sq{width:100%;max-width:100%;aspect-ratio:1;display:block;border-radius:8px;border:1px solid var(--line);cursor:crosshair;touch-action:pan-y;background:var(--surface)}
+canvas.sig{width:100%;height:120px;display:block}
+.panel{display:grid;gap:10px;min-width:0;font:400 14px/1.5 var(--f-display)}
+.stat{color:var(--fg-2);font-variant-numeric:tabular-nums}
+.formula{font:400 13px/1.85 var(--f-mono);background:var(--surface-2);border-radius:8px;padding:10px 12px;font-variant-numeric:tabular-nums;overflow-x:auto;color:var(--fg)}
+.dec{font:600 16px/1.4 var(--f-display);min-height:24px;font-variant-numeric:tabular-nums}
+.btns{display:flex;flex-wrap:wrap;gap:8px}
+button{font:500 14px var(--f-display);color:var(--fg);background:transparent;border:1px solid var(--line-strong);border-radius:8px;padding:7px 13px;cursor:pointer}
+button:hover{background:var(--surface-2)}
+button:focus-visible,input:focus-visible,nav a:focus-visible{outline:2px solid var(--c0);outline-offset:2px}
+.row{display:flex;align-items:center;gap:12px}
+input[type=range]{flex:1;accent-color:var(--c0)}
+input[type=checkbox]{accent-color:var(--c0);width:16px;height:16px;margin:0}
+.chk{display:flex;gap:8px;align-items:center;color:var(--fg-2)}
+.bars{display:grid;grid-template-columns:56px minmax(0,1fr) 28px;gap:8px;align-items:center;color:var(--fg-2);font-variant-numeric:tabular-nums}
+.bars span:nth-child(3n){text-align:right}
+.track{height:10px;background:var(--surface-2);border-radius:5px;overflow:hidden}
+.track div{height:100%;width:0;border-radius:5px}
+.pills{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px}
+.pill{font:500 13px var(--f-display);padding:5px 12px;border-radius:999px;background:var(--surface-2);color:var(--fg-2)}
+.pill.on{background:var(--fg);color:var(--bg)}
+.minis{grid-column:1/-1;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+.minis canvas{width:100%;max-width:100%;aspect-ratio:1;display:block;border-radius:6px;border:1px solid var(--line);background:var(--surface)}
+.minis .cap{font:400 12px/1.35 var(--f-display);color:var(--fg-2);margin-top:4px}
+.votes{display:grid;grid-template-columns:repeat(25,minmax(0,1fr));gap:2px}
+.votes span{height:14px;border-radius:2px;background:var(--surface-2)}
+.path{min-height:150px}
+.note{background:var(--surface-2);border-radius:12px;padding:16px 18px;max-width:72ch;display:grid;gap:6px}
+.note b{font:600 12px/1.2 var(--f-display);text-transform:uppercase;letter-spacing:.1em;color:var(--fg-2)}
+.note p{margin:0;font-size:16px}
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:640px;font:400 14px/1.45 var(--f-display)}
+th,td{text-align:left;padding:11px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+thead th{font-weight:650;color:var(--fg)}
+tbody th{font-weight:500;color:var(--fg-2);white-space:nowrap}
+tr:last-child>*{border-bottom:0}
+.tldr{font:500 18px/1.5 var(--f-display);max-width:66ch;margin:0}
+.tldr b{font-weight:650}
+footer{margin-top:48px;padding-top:20px;border-top:1px solid var(--line);font:400 13px/1.6 var(--f-display);color:var(--muted);max-width:72ch}
+@media (max-width:700px){.lab{grid-template-columns:minmax(0,1fr);padding:14px;gap:18px}.minis{gap:6px}.minis .cap{font-size:11px}}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+</style>
+
+<div class="wrap">
+<header>
+<div class="eyebrow">Classification supervisée · même jeu de données pour les trois</div>
+<h1>Trois classifieurs en mouvement</h1>
+<p class="lede">Régression logistique, KNN à 21 voisins et forêt aléatoire, calculés en direct sous tes yeux. Même nuage de points, trois façons radicalement différentes de tracer la frontière.</p>
+<div class="meta">
+<span class="sw"><i style="background:var(--c0)"></i>Classe bleue</span>
+<span class="sw"><i style="background:var(--c1)"></i>Classe orange</span>
+<span>130 points · 2 features · 2 îlots piégeux</span>
+</div>
+<nav aria-label="Sections"><a href="#logistique">Régression logistique</a><a href="#knn">KNN, k = 21</a><a href="#foret">Random Forest</a><a href="#comparatif">Comparatif</a></nav>
+</header>
+
+<section id="logistique">
+<h2>Régression logistique</h2>
+<p class="kicker">modèle linéaire paramétrique · décision = signe de w·x + b</p>
+<div class="prose">
+<p>Elle apprend un vecteur de poids <code>w</code> et un biais <code>b</code> en minimisant la log-loss (entropie croisée) par descente de gradient. Dans l'animation, la droite démarre mal orientée et pivote époque après époque jusqu'à séparer au mieux les deux nuages.</p>
+<p>Pour classer un point, elle calcule le score z = w·x + b, qui vaut ‖w‖ fois la distance signée du point à la frontière (les pointillés). La sigmoïde σ(z) = 1 / (1 + e<sup>−z</sup>) transforme ce score en probabilité, puis le seuil par défaut coupe à 0,5. Le fond coloré montre cette probabilité en tout point du plan.</p>
+</div>
+<div class="lab" id="lr">
+<figure class="plot"><canvas id="lr-c" class="sq" role="img" aria-label="Points bleus et orange avec la frontière linéaire apprise par descente de gradient"></canvas><figcaption>Clique dans le plan pour placer le point à classer</figcaption></figure>
+<div class="panel">
+<div class="stat" id="lr-ep">Époque 0</div>
+<div class="stat" id="lr-ac" style="min-height:42px"></div>
+<div class="formula" id="lr-eq">z = w₁·x₁ + w₂·x₂ + b</div>
+<div class="hint">x₁, x₂ standardisés · z ∝ distance signée à la frontière</div>
+<canvas id="lr-s" class="sig" role="img" aria-label="Courbe sigmoïde avec la position du score z du point"></canvas>
+<div class="dec" id="lr-dec"></div>
+<div class="btns"><button id="lr-rb">Rejouer l'entraînement</button><button id="lr-ab">Mode auto</button></div>
+</div>
+</div>
+<div class="note"><b>Point de blocage</b><p>La frontière est forcément un hyperplan. Les deux îlots restent mal classés quoi qu'il arrive, sauf à fabriquer des features non linéaires (termes polynomiaux, interactions) ou à passer à un modèle non linéaire. En échange : entraînement rapide, probabilités plutôt bien calibrées, coefficients interprétables.</p></div>
+</section>
+
+<section id="knn">
+<h2>K plus proches voisins, k = 21</h2>
+<p class="kicker">non paramétrique, paresseux · décision = vote local</p>
+<div class="prose">
+<p>KNN n'apprend rien : le modèle, c'est le jeu de données brut stocké en mémoire. Tout le travail se fait au moment de la prédiction.</p>
+<p>Pour un point q, il calcule la distance euclidienne à chacun des 130 points, trie, garde les 21 plus proches (le cercle grandit jusqu'au 21e) et fait voter : p(orange) = voisins orange / 21. Un k impair évite les égalités en binaire. Active la carte et bouge le curseur : k petit colle au bruit (variance), k grand lisse jusqu'à gommer les îlots (biais).</p>
+</div>
+<div class="lab" id="kn">
+<figure class="plot"><canvas id="kn-c" class="sq" role="img" aria-label="Points bleus et orange, cercle des k plus proches voisins autour du point à classer"></canvas><figcaption>Clique dans le plan pour placer le point à classer</figcaption></figure>
+<div class="panel">
+<div class="row"><label for="kn-k" style="color:var(--fg-2)">k</label><input type="range" min="1" max="51" step="2" value="21" id="kn-k"><span id="kn-ko" style="font-weight:600;min-width:24px;text-align:right">21</span></div>
+<label class="chk"><input type="checkbox" id="kn-map"> Carte de décision</label>
+<div class="stat" id="kn-st"></div>
+<div class="bars">
+<span>Bleu</span><div class="track"><div id="kn-bb" style="background:var(--c0)"></div></div><span id="kn-nb">0</span>
+<span>Orange</span><div class="track"><div id="kn-bo" style="background:var(--c1)"></div></div><span id="kn-no">0</span>
+</div>
+<div class="dec" id="kn-dec"></div>
+<div class="formula" style="color:var(--fg-2)">d(q, xᵢ) = √((x₁ − q₁)² + (x₂ − q₂)²)<br>130 distances calculées puis triées à chaque prédiction<br>aucun entraînement : le modèle = les données</div>
+<div class="btns"><button id="kn-ab">Mode auto</button></div>
+</div>
+</div>
+<div class="note"><b>Point de blocage</b><p>Trois pièges en conditions réelles. Le scaling : sans <code>StandardScaler</code>, une feature en euros écrase une feature en années, car la distance ignore les unités. La dimension : au-delà de quelques dizaines de features, toutes les distances se ressemblent et la notion de voisinage s'effondre. Le coût : O(n) par prédiction, d'où les index approximatifs (FAISS, HNSW) dès que n grossit.</p></div>
+</section>
+
+<section id="foret">
+<h2>Random Forest</h2>
+<p class="kicker">ensemble d'arbres de décision · décision = moyenne des 25 arbres</p>
+<div class="prose">
+<p>Chaque arbre s'entraîne sur un échantillon bootstrap : n tirages avec remise, donc certains points comptent plusieurs fois et environ 37 % restent hors du sac (OOB), ce qui fournit une évaluation gratuite.</p>
+<p>À chaque nœud, l'arbre tire au hasard un sous-ensemble de features (<code>max_features = √d</code> par défaut dans scikit-learn, soit 1 sur 2 ici), puis choisit le seuil qui minimise l'impureté de Gini. D'où les découpes horizontales et verticales qui partitionnent le plan en rectangles.</p>
+<p>Un arbre seul overfit. Mais le bootstrap et le tirage de features décorrèlent leurs erreurs, donc la moyenne des 25 arbres écrase la variance. scikit-learn moyenne les probabilités des feuilles (soft voting) au lieu de compter des votes durs.</p>
+</div>
+<div class="lab" id="rf">
+<div class="pills"><span class="pill" id="rf-p0">1. Bootstrap</span><span class="pill" id="rf-p1">2. Croissance des arbres</span><span class="pill" id="rf-p2">3. Vote</span></div>
+<figure class="plot"><canvas id="rf-big" class="sq" role="img" aria-label="Partition de l'espace par un arbre, puis carte de décision moyenne de la forêt"></canvas><figcaption id="rf-bl">Arbre 1 en grand</figcaption></figure>
+<div class="panel">
+<div class="stat" id="rf-info" style="min-height:66px"></div>
+<div class="formula path" id="rf-path"></div>
+<div class="hint">Vote des 25 arbres</div>
+<div class="votes" id="rf-votes"></div>
+<div class="dec" id="rf-dec"></div>
+<div class="btns"><button id="rf-rp">Rejouer</button><button id="rf-ab">Mode auto</button></div>
+</div>
+<div class="minis" id="rf-minis"></div>
+</div>
+<div class="note"><b>Point de blocage</b><p>Frontières en escalier alignées sur les axes, et aucune extrapolation : hors de la plage vue à l'entraînement, la prédiction reste celle de la feuille du bord. Les importances de features par impureté sont biaisées vers les variables à forte cardinalité : préférer la permutation importance.</p></div>
+</section>
+
+<section id="comparatif">
+<h2>Comparatif</h2>
+<div class="tbl">
+<table>
+<thead><tr><th></th><th>Régression logistique</th><th>KNN, k = 21</th><th>Random Forest</th></tr></thead>
+<tbody>
+<tr><th>Frontière</th><td>Une droite (hyperplan)</td><td>Locale, sinueuse</td><td>En escalier, axe par axe</td></tr>
+<tr><th>Entraînement</th><td>Descente de gradient sur la log-loss</td><td>Aucun, stocke les données</td><td>25 arbres CART sur bootstrap</td></tr>
+<tr><th>Prédiction</th><td>Un produit scalaire</td><td>n distances puis un tri</td><td>25 descentes d'arbre</td></tr>
+<tr><th>Probabilité</th><td>σ(w·x + b)</td><td>Voisins orange / k</td><td>Moyenne des feuilles</td></tr>
+<tr><th>Scaling requis</th><td>Oui (convergence, régularisation)</td><td>Oui, critique</td><td>Non</td></tr>
+<tr><th>Îlots de l'exemple</th><td>Ratés</td><td>Captés</td><td>Captés, en blocs</td></tr>
+</tbody>
+</table>
+</div>
+<p class="tldr"><b>TLDR</b> : régression logistique = une droite et une sigmoïde. KNN = vote des 21 voisins, zéro entraînement. Random Forest = 25 arbres en escalier dont on moyenne les probabilités.</p>
+</section>
+
+<footer>Tout est calculé en direct dans la page : descente de gradient, recherche de voisins et arbres CART codés en JavaScript, avec les réglages par défaut de scikit-learn (Gini, max_features = √d, soft voting). Jeu de données synthétique et déterministe : 130 points, 2 features, 2 îlots.</footer>
+</div>
+
+<script>
+const RM=matchMedia('(prefers-reduced-motion: reduce)').matches,dpr=Math.min(2,window.devicePixelRatio||1);
+let TH;
+function readTheme(){const s=getComputedStyle(document.documentElement),g=n=>s.getPropertyValue(n).trim(),hx=h=>{h=h.replace('#','');return[0,2,4].map(i=>parseInt(h.slice(i,i+2),16));};TH={c0:hx(g('--c0')),c1:hx(g('--c1')),gy:hx(g('--muted')),ink:g('--ink'),bg:g('--surface'),mu:g('--muted')};}
+readTheme();
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change',readTheme);
+new MutationObserver(readTheme).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+const rgb=(c,a)=>'rgba('+c[0]+','+c[1]+','+c[2]+','+a+')';
+function rng(s){return()=>{s|=0;s=s+0x6D2B79F5|0;let t=Math.imul(s^s>>>15,1|s);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+function data(){const r=rng(7),g=()=>Math.sqrt(-2*Math.log(r()+1e-9))*Math.cos(6.2832*r()),P=[];const add=(n,cx,cy,s,c)=>{let k=0;while(k<n){const x=cx+g()*s,y=cy+g()*s;if(x>.03&&x<.97&&y>.03&&y<.97){P.push([x,y,c]);k++;}}};add(58,.33,.36,.12,0);add(46,.68,.64,.11,1);add(14,.15,.74,.05,1);add(12,.86,.27,.05,0);return P;}
+const P=data(),N=P.length;
+function fit(c,h){const w=c.clientWidth,H=h||w;if(c._w!==w||c._h!==H){c._w=w;c._h=H;c.width=Math.round(w*dpr);c.height=Math.round(H*dpr);}const x=c.getContext('2d');x.setTransform(dpr,0,0,dpr,0,0);return[x,w,H];}
+function cell(x,W,x0,y0,x1,y1,p,a){const s=Math.abs(p-.5)*2;x.fillStyle=rgb(p>.5?TH.c1:TH.c0,a*s+.03);x.fillRect(x0*W,(1-y1)*W,(x1-x0)*W+.7,(y1-y0)*W+.7);}
+function dots(x,W,al){for(const p of P){x.beginPath();x.arc(p[0]*W,(1-p[1])*W,3.2,0,6.2832);x.fillStyle=rgb(p[2]?TH.c1:TH.c0,al);x.fill();x.lineWidth=1.2;x.strokeStyle=TH.bg;x.stroke();}}
+function qm(x,W,q,c,r){r=r||7;x.beginPath();x.arc(q[0]*W,(1-q[1])*W,r,0,6.2832);x.fillStyle=rgb(c,1);x.fill();x.lineWidth=r<6?1.5:2.5;x.strokeStyle=TH.ink;x.stroke();}
+const fr=v=>v.toFixed(2).replace('.',','),$=id=>document.getElementById(id),cls=p=>p>.5?'var(--c1)':'var(--c0)';
+function plane(c,f){return e=>{const r=c.getBoundingClientRect();f([Math.min(1,Math.max(0,(e.clientX-r.left)/r.width)),Math.min(1,Math.max(0,1-(e.clientY-r.top)/r.height))],e.type);};}
+const WG=[];
+function reg(el,frame){const w={vis:false,frame};WG.push(w);new IntersectionObserver(es=>{w.vis=es[0].isIntersecting;},{rootMargin:'120px'}).observe(el);}
+
+(()=>{
+const C=$('lr-c'),S=$('lr-s'),E=260,LR=.35,f=v=>(v-.5)*4,sg=z=>1/(1+Math.exp(-z));
+let w,b,ep,loss=0,man=false,q=[.42,.62],t0=null;
+function step(){let a=0,c=0,d=0,L=0;for(const p of P){const u=f(p[0]),v=f(p[1]),pr=sg(w[0]*u+w[1]*v+b),e=pr-p[2];a+=e*u;c+=e*v;d+=e;L-=p[2]?Math.log(pr+1e-9):Math.log(1-pr+1e-9);}w[0]-=LR*a/N;w[1]-=LR*c/N;b-=LR*d/N;ep++;return L/N;}
+function reset(){w=[-1.4,1.6];b=.8;ep=0;loss=0;if(RM)while(ep<E)loss=step();}
+reset();
+function frame(now){
+if(t0===null)t0=now;
+if(ep<E)loss=step();
+const tt=(now-t0)/1000;if(!man&&!RM)q=[.5+.33*Math.cos(tt*.45),.5+.3*Math.sin(tt*.7)];
+const[x,W]=fit(C);x.fillStyle=TH.bg;x.fillRect(0,0,W,W);
+const G=40;for(let i=0;i<G;i++)for(let j=0;j<G;j++){const cx=(i+.5)/G,cy=(j+.5)/G;cell(x,W,i/G,j/G,(i+1)/G,(j+1)/G,sg(w[0]*f(cx)+w[1]*f(cy)+b),.4);}
+const A=4*w[0],B=4*w[1],K=b-2*w[0]-2*w[1],nn=A*A+B*B;
+let p1,p2;if(Math.abs(B)>Math.abs(A)){p1=[0,-K/B];p2=[1,-(A+K)/B];}else{p1=[-K/A,0];p2=[-(B+K)/A,1];}
+x.beginPath();x.moveTo(p1[0]*W,(1-p1[1])*W);x.lineTo(p2[0]*W,(1-p2[1])*W);x.lineWidth=2;x.strokeStyle=TH.ink;x.stroke();
+dots(x,W,.95);
+const dq=(A*q[0]+B*q[1]+K)/nn,fq=[q[0]-A*dq,q[1]-B*dq];
+x.setLineDash([4,4]);x.beginPath();x.moveTo(q[0]*W,(1-q[1])*W);x.lineTo(fq[0]*W,(1-fq[1])*W);x.lineWidth=1.5;x.strokeStyle=TH.ink;x.stroke();x.setLineDash([]);
+const d0=(A*.5+B*.5+K)/nn,o=[.5-A*d0,.5-B*d0],Ln=Math.sqrt(nn),e=[o[0]+A/Ln*.12,o[1]+B/Ln*.12];
+const ox=o[0]*W,oy=(1-o[1])*W,ex=e[0]*W,ey=(1-e[1])*W,an=Math.atan2(ey-oy,ex-ox);
+x.beginPath();x.moveTo(ox,oy);x.lineTo(ex,ey);x.lineTo(ex-9*Math.cos(an-.45),ey-9*Math.sin(an-.45));x.moveTo(ex,ey);x.lineTo(ex-9*Math.cos(an+.45),ey-9*Math.sin(an+.45));x.lineWidth=2;x.strokeStyle=TH.ink;x.stroke();
+x.fillStyle=TH.ink;x.font='600 14px "Bricolage Grotesque",sans-serif';x.fillText('w',ex+6,ey-4);
+const u=f(q[0]),v=f(q[1]),z=w[0]*u+w[1]*v+b,p=sg(z),cl=p>.5?TH.c1:TH.c0;
+qm(x,W,q,cl);
+let ok=0;for(const pt of P){if((sg(w[0]*f(pt[0])+w[1]*f(pt[1])+b)>.5?1:0)===pt[2])ok++;}
+$('lr-ep').textContent='Époque '+ep+' / '+E+' · log-loss '+loss.toFixed(3).replace('.',',')+(ep>=E?' · entraînement terminé':'');
+$('lr-ac').textContent='Précision sur les données : '+Math.round(ok/N*100)+' %'+(ep>=E?' (les deux îlots restent du mauvais côté de la droite)':'');
+$('lr-eq').innerHTML='z = w₁·x₁ + w₂·x₂ + b<br>&nbsp;&nbsp;= '+fr(w[0])+'·'+fr(u)+' + '+fr(w[1])+'·'+fr(v)+' + '+fr(b)+'<br>&nbsp;&nbsp;= '+fr(z)+'<br>p = σ(z) = 1 / (1 + e<sup>−z</sup>) = '+fr(p);
+const dc=$('lr-dec');dc.textContent='p(orange) = '+fr(p)+' ≥ 0,5 ? '+(p>.5?'oui → orange':'non → bleu');dc.style.color=cls(p);
+const[s,SW,SH]=fit(S,120);s.clearRect(0,0,SW,SH);
+const X=zz=>(zz+8)/16*SW,Y=pp=>8+(1-pp)*(SH-28);
+s.strokeStyle=TH.mu;s.lineWidth=1;s.setLineDash([3,3]);s.beginPath();s.moveTo(0,Y(.5));s.lineTo(SW,Y(.5));s.moveTo(X(0),Y(0));s.lineTo(X(0),Y(1));s.stroke();s.setLineDash([]);
+s.beginPath();for(let i=0;i<=120;i++){const zz=-8+16*i/120;if(i)s.lineTo(X(zz),Y(sg(zz)));else s.moveTo(X(zz),Y(sg(zz)));}s.lineWidth=2;s.strokeStyle=TH.ink;s.stroke();
+const zc=Math.max(-8,Math.min(8,z));
+s.setLineDash([2,3]);s.beginPath();s.moveTo(X(zc),Y(0));s.lineTo(X(zc),Y(sg(zc)));s.lineTo(0,Y(sg(zc)));s.lineWidth=1.2;s.strokeStyle=rgb(cl,1);s.stroke();s.setLineDash([]);
+s.beginPath();s.arc(X(zc),Y(sg(zc)),5.5,0,6.2832);s.fillStyle=rgb(cl,1);s.fill();s.lineWidth=2;s.strokeStyle=TH.bg;s.stroke();
+s.fillStyle=TH.mu;s.font='11px "JetBrains Mono",monospace';s.fillText('0,5',2,Y(.5)-4);s.fillText('σ(z)',X(0)+4,12);s.fillText('z',SW-10,SH-6);s.fillText('seuil',SW-40,Y(.5)-4);
+}
+const pick=plane(C,p=>{q=p;man=true;});
+C.addEventListener('pointerdown',pick);C.addEventListener('pointermove',e=>{if(e.buttons&&e.pointerType==='mouse')pick(e);});
+$('lr-rb').onclick=reset;$('lr-ab').onclick=()=>{man=false;};
+reg($('lr'),frame);
+})();
+
+(()=>{
+const C=$('kn-c'),KS=$('kn-k'),MP=$('kn-map');
+let k=+KS.value||21,man=false,tg=[.3,.32],q=[.3,.32],ts=0,last=null,si=0,map=null;
+$('kn-ko').textContent=k;
+const seq=[[.3,.32],[.16,.72],[.52,.52],[.86,.28],[.68,.66],[.44,.8],[.38,.56]];
+const nb=(x,y)=>P.map((p,i)=>[Math.hypot(p[0]-x,p[1]-y),i]).sort((a,b)=>a[0]-b[0]);
+function mk(){const G=50;map=new Float32Array(G*G);for(let i=0;i<G;i++)for(let j=0;j<G;j++){const s=nb((i+.5)/G,(j+.5)/G);let c=0;for(let n=0;n<k;n++)c+=P[s[n][1]][2];map[i*G+j]=c/k;}}
+KS.addEventListener('input',()=>{k=+KS.value;$('kn-ko').textContent=k;map=null;ts=performance.now();});
+function frame(now){
+if(last===null){last=now;ts=now;}
+if(!man&&!RM&&now-last>3600){si=(si+1)%seq.length;tg=seq[si];last=now;ts=now;}
+q=RM?tg.slice():[q[0]+(tg[0]-q[0])*.12,q[1]+(tg[1]-q[1])*.12];
+const s=nb(q[0],q[1]),rk=s[k-1][0],pr=RM?1:Math.max(0,Math.min(1,(now-ts-350)/1300)),ez=1-Math.pow(1-pr,3),rad=rk*ez;
+const inn=[];for(let n=0;n<k;n++){if(s[n][0]<=rad+1e-9)inn.push(s[n]);else break;}
+let co=0;for(const e of inn)co+=P[e[1]][2];const cb=inn.length-co;
+const[x,W]=fit(C);x.fillStyle=TH.bg;x.fillRect(0,0,W,W);
+if(MP.checked){if(!map)mk();const G=50;for(let i=0;i<G;i++)for(let j=0;j<G;j++)cell(x,W,i/G,j/G,(i+1)/G,(j+1)/G,map[i*G+j],.42);}
+for(const e of inn){const p=P[e[1]];x.beginPath();x.moveTo(q[0]*W,(1-q[1])*W);x.lineTo(p[0]*W,(1-p[1])*W);x.strokeStyle=rgb(p[2]?TH.c1:TH.c0,.55);x.lineWidth=1.2;x.stroke();}
+dots(x,W,.95-.55*ez);
+for(const e of inn){const p=P[e[1]];x.beginPath();x.arc(p[0]*W,(1-p[1])*W,4.2,0,6.2832);x.fillStyle=rgb(p[2]?TH.c1:TH.c0,1);x.fill();x.lineWidth=1.5;x.strokeStyle=TH.ink;x.stroke();}
+if(rad>0){x.setLineDash([5,4]);x.beginPath();x.arc(q[0]*W,(1-q[1])*W,rad*W,0,6.2832);x.lineWidth=1.5;x.strokeStyle=TH.ink;x.stroke();x.setLineDash([]);}
+const done=inn.length===k,pp=co/k;
+qm(x,W,q,done?(pp>.5?TH.c1:TH.c0):TH.gy);
+$('kn-st').textContent='Voisins dans le cercle : '+inn.length+' / '+k;
+$('kn-bb').style.width=(cb/k*100)+'%';$('kn-bo').style.width=(co/k*100)+'%';
+$('kn-nb').textContent=cb;$('kn-no').textContent=co;
+const dc=$('kn-dec');if(done){dc.textContent='p(orange) = '+co+'/'+k+' = '+fr(pp)+' → '+(pp>.5?'orange':'bleu');dc.style.color=cls(pp);}else{dc.textContent='Recherche des voisins…';dc.style.color='var(--fg-2)';}
+}
+const pick=plane(C,(p,type)=>{tg=p;man=true;if(type==='pointerdown')ts=performance.now();});
+C.addEventListener('pointerdown',pick);C.addEventListener('pointermove',e=>{if(e.buttons&&e.pointerType==='mouse')pick(e);});
+$('kn-ab').onclick=()=>{man=false;last=-1e9;};
+reg($('kn'),frame);
+})();
+
+(()=>{
+const T=25,MD=4,r2=rng(11),gi=(c,n)=>{const p=c/n;return 2*p*(1-p);};
+function build(ids,d,box){const n=ids.length;let c=0;for(const i of ids)c+=P[i][2];const nd={n,c,d,box,g:gi(c,n)};if(d>=MD||n<6||c===0||c===n)return nd;
+const fs=r2()<.5?[0,1]:[1,0];
+for(const f of fs){const s=ids.slice().sort((a,b)=>P[a][f]-P[b][f]);let lc=0,bs=null;
+for(let j=0;j<n-1;j++){lc+=P[s[j]][2];const v=P[s[j]][f],v2=P[s[j+1]][f];if(v2-v<1e-9)continue;const ln=j+1,rn=n-ln;if(ln<3||rn<3)continue;const g=(ln*gi(lc,ln)+rn*gi(c-lc,rn))/n;if(!bs||g<bs.g)bs={g,t:(v+v2)/2,j};}
+if(bs&&bs.g<nd.g-1e-9){nd.f=f;nd.t=bs.t;nd.gw=bs.g;const bl=box.slice(),br=box.slice();if(f===0){bl[2]=bs.t;br[0]=bs.t;}else{bl[3]=bs.t;br[1]=bs.t;}nd.l=build(s.slice(0,bs.j+1),d+1,bl);nd.r=build(s.slice(bs.j+1),d+1,br);return nd;}}
+return nd;}
+const F=[];for(let t=0;t<T;t++){const ids=[];for(let i=0;i<N;i++)ids.push(Math.floor(r2()*N));F.push({ids,root:build(ids,0,[0,0,1,1])});}
+const leaf=(nd,x,y)=>{const pth=[];while(nd.f!==undefined){const v=nd.f?y:x,yes=v<=nd.t;pth.push([nd,yes]);nd=yes?nd.l:nd.r;}return[nd,pth];};
+const G=50,AG=new Float32Array(G*G);for(let i=0;i<G;i++)for(let j=0;j<G;j++){let s=0;for(const t of F){const l=leaf(t.root,(i+.5)/G,(j+.5)/G)[0];s+=l.c/l.n;}AG[i*G+j]=s/T;}
+function part(x,W,nd,D){if(nd.f===undefined||nd.d>=D){const b=nd.box;cell(x,W,b[0],b[1],b[2],b[3],nd.c/nd.n,.42);return;}part(x,W,nd.l,D);part(x,W,nd.r,D);}
+function spl(x,W,nd,D,k,lw){if(nd.f===undefined||nd.d>D)return;const g=nd.d<D?1:k;if(g<=0)return;const b=nd.box;x.beginPath();if(nd.f===0){x.moveTo(nd.t*W,(1-b[1])*W);x.lineTo(nd.t*W,(1-b[1]-(b[3]-b[1])*g)*W);}else{x.moveTo(b[0]*W,(1-nd.t)*W);x.lineTo((b[0]+(b[2]-b[0])*g)*W,(1-nd.t)*W);}x.lineWidth=lw;x.strokeStyle=TH.ink;x.stroke();if(nd.d<D){spl(x,W,nd.l,D,k,lw);spl(x,W,nd.r,D,k,lw);}}
+function samp(x,W,t,R,al){const cnt=new Uint8Array(N);for(let i=0;i<R;i++)cnt[t.ids[i]]++;const sc=Math.max(.5,W/300);for(let i=0;i<N;i++){const p=P[i];x.beginPath();if(cnt[i]){x.arc(p[0]*W,(1-p[1])*W,(2.2+1.3*(cnt[i]-1))*sc,0,6.2832);x.fillStyle=rgb(p[2]?TH.c1:TH.c0,al);x.fill();x.lineWidth=1;x.strokeStyle=TH.bg;x.stroke();}else{x.arc(p[0]*W,(1-p[1])*W,1.6*sc,0,6.2832);x.fillStyle=rgb(TH.gy,.35);x.fill();}}}
+function tree(c,t,ph,R,D,k,q,hl){const[x,W]=fit(c);x.fillStyle=TH.bg;x.fillRect(0,0,W,W);const lw=W>200?1.6:1,DD=ph===2?MD:D;
+if(ph>=1)part(x,W,t.root,DD);
+if(ph===2&&hl){const b=hl.box;x.fillStyle=rgb(hl.c/hl.n>.5?TH.c1:TH.c0,.22);x.fillRect(b[0]*W,(1-b[3])*W,(b[2]-b[0])*W,(b[3]-b[1])*W);}
+if(ph>=1)spl(x,W,t.root,DD,ph===2?1:k,lw);
+samp(x,W,t,R,ph===2?.5:.95);
+if(ph===2&&hl){const b=hl.box;x.lineWidth=2;x.strokeStyle=TH.ink;x.strokeRect(b[0]*W+1,(1-b[3])*W+1,(b[2]-b[0])*W-2,(b[3]-b[1])*W-2);qm(x,W,q,hl.c/hl.n>.5?TH.c1:TH.c0,W>200?7:4);}}
+const big=$('rf-big'),MN=$('rf-minis'),mc=[],cap=[];
+for(let i=0;i<5;i++){const d=document.createElement('div'),c=document.createElement('canvas'),s=document.createElement('div');c.setAttribute('role','img');c.setAttribute('aria-label','Arbre '+(i+1)+' de la forêt');s.className='cap';d.appendChild(c);d.appendChild(s);MN.appendChild(d);mc.push(c);cap.push(s);}
+const VT=$('rf-votes'),vs=[];for(let i=0;i<T;i++){const v=document.createElement('span');VT.appendChild(v);vs.push(v);}
+const pills=[0,1,2].map(i=>$('rf-p'+i)),u1=new Set(F[0].ids).size,X1=f=>f?'x₂':'x₁';
+let t0=null,man=false,q=[.4,.62];
+function frame(now){
+if(t0===null)t0=RM?now-8200:now;
+const t=(now-t0)/1000,ph=t<2.6?0:t<8.2?1:2;
+const R=ph===0?Math.floor(Math.min(1,t/2.2)*N):N,dd=ph===1?Math.min(MD,(t-2.6)/1.3):MD,D=Math.floor(dd),k=dd-D;
+if(ph===2&&!man&&!RM){const tt=t-8.2;q=[.5+.34*Math.cos(tt*.4),.5+.3*Math.sin(tt*.65)];}
+const L=F.map(f=>leaf(f.root,q[0],q[1]));
+pills.forEach((p,i)=>p.classList.toggle('on',i===ph));
+for(let i=0;i<5;i++){tree(mc[i],F[i],ph,R,D,k,q,ph===2?L[i][0]:null);const l=L[i][0],p=l.c/l.n;cap[i].textContent=ph===2?'Arbre '+(i+1)+' : '+(p>.5?'orange':'bleu')+' ('+fr(p)+')':'Arbre '+(i+1);cap[i].style.color=ph===2?cls(p):'';}
+let no=0,pm=0;for(const[l]of L){const p=l.c/l.n;pm+=p/T;if(p>.5)no++;}
+if(ph<2){tree(big,F[0],ph,R,D,k,q,null);$('rf-bl').textContent='Arbre 1 en grand';}
+else{const[x,W]=fit(big);x.fillStyle=TH.bg;x.fillRect(0,0,W,W);for(let i=0;i<G;i++)for(let j=0;j<G;j++)cell(x,W,i/G,j/G,(i+1)/G,(j+1)/G,AG[i*G+j],.45);dots(x,W,.9);qm(x,W,q,pm>.5?TH.c1:TH.c0);$('rf-bl').textContent='Forêt : moyenne des probabilités des 25 arbres. Clique pour placer le point.';}
+const info=$('rf-info'),pa=$('rf-path'),dc=$('rf-dec');
+if(ph===0){info.textContent='Arbre 1 : '+N+' tirages avec remise, '+u1+' points uniques, '+(N-u1)+' hors du sac (OOB). Taille du point = nombre de tirages.';pa.innerHTML='<span style="color:var(--muted)">Les arbres ne sont pas encore construits.</span>';}
+else if(ph===1){const r=F[0].root;info.textContent='Profondeur '+Math.min(MD,D+1)+' / '+MD+'. À chaque nœud : 1 feature tirée au hasard (max_features = √2 ≈ 1), puis le seuil qui minimise l’impureté de Gini.';pa.innerHTML='Racine de l’arbre 1 :<br>'+X1(r.f)+' ≤ '+fr(r.t)+'<br>Gini '+fr(r.g)+' → '+fr(r.gw)+' après découpe';}
+else{const[l,pth]=L[0],p=l.c/l.n;info.textContent='Le point descend chaque arbre jusqu’à une feuille. La forêt moyenne les probabilités des feuilles (soft voting, comme scikit-learn).';pa.innerHTML='Arbre 1 :<br>'+pth.map(([nd,y])=>X1(nd.f)+' ≤ '+fr(nd.t)+' ? '+(y?'oui':'non')).join('<br>')+'<br>feuille : '+l.c+' orange / '+l.n+' → '+(p>.5?'orange':'bleu');}
+L.forEach(([l],i)=>{vs[i].style.background=ph===2?cls(l.c/l.n):'';});
+if(ph===2){dc.textContent='Votes : '+no+' orange, '+(T-no)+' bleu · p moyenne = '+fr(pm)+' → '+(pm>.5?'orange':'bleu');dc.style.color=cls(pm);}else dc.textContent='';
+}
+const pick=plane(big,p=>{q=p;man=true;if(t0!==null&&(performance.now()-t0)/1000<8.2)t0=performance.now()-8200;});
+big.addEventListener('pointerdown',pick);big.addEventListener('pointermove',e=>{if(e.buttons&&e.pointerType==='mouse')pick(e);});
+$('rf-rp').onclick=()=>{t0=RM?performance.now()-8200:performance.now();man=false;};
+$('rf-ab').onclick=()=>{man=false;};
+reg($('rf'),frame);
+})();
+
+function loop(now){for(const w of WG)if(w.vis)w.frame(now);requestAnimationFrame(loop);}
+requestAnimationFrame(loop);
+</script>
+
+</body></html>
